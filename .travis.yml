@@ -24,16 +24,20 @@ before_install:
 
 install:
   - pip install -r requirements.txt
-  - pip install nose>=1.3.7 coverage codecov pytest>=3.0.5
+  - pip install nose coverage codecov pytest codacy-coverage
 
 before_script:
   - mkdir output
   - gcc --version ; python --version ; pip --version ; pwd ; ls -l
 
 script:
-  # - pytest imsegm -v --doctest-modules
-  - nosetests scripts/* -v --exe --with-doctest --with-xunit  # --with-coverage
-
+#  - pytest -v --doctest-modules
+  - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=scripts  # --ignore-files=*.ijm
 
 after_success:
+  - codecov  # public repository on Travis CI
+  # private repository on Travis CI
+  # - codecov -t XXXXXXXXXXXXXXXXXXXXXX
+  - coverage xml
+  - python-codacy-coverage -r coverage.xml
   - coverage report
