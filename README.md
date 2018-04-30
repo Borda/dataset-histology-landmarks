@@ -13,4 +13,106 @@ The image part of the dataset are available [here](http://cmp.felk.cvut.cz/~boro
 
 ## Landmarks
 
-The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame. For handling this landmarks we provide a simple macros for [import](annotations/multiPointSet_import.ijm) and [export](annotations/multiPointSet_export.ijm).
+The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame (the origin [0, 0] is located in top left corner of the image plane). For handling this landmarks we provide a simple macros for [import](annotations/multiPointSet_import.ijm) and [export](annotations/multiPointSet_export.ijm).
+
+The folder structure is the same as for images so the landmarks share the same names with the image and they are located in the same directory next to images.
+
+```
+DATASET
+ |- [set_name1]
+ |  |- scale-[number1]pc
+ |  |   |- [image_name1].png
+ |  |   |- [image_name1].csv
+ |  |   |- [image_name2].png
+ |  |   |- [image_name2].csv
+ |  |   |  ...
+ |  |   |- [image_name].png
+ |  |   '- [image_name].csv
+ |  |- scale-[number2]pc
+ |  |  ...
+ |  '- scale-[number]pc
+ |      |- [image_name1].png
+ |      |- [image_name1].csv
+ |      |  ...
+ |      |- [image_name].png
+ |      '- [image_name].csv
+ |- [set_name2]
+ | ...
+ '- [set_name]
+```
+
+The landmarks for all images are generated as consensus over all user providing they annotation for a particular image set. 
+There is a verification procedure before any new annotation is added the "authorised" annotation.
+
+```bash
+python ...
+```
+
+## Annotations
+
+The annotation is a collection of landmarks placement from several users. The structure is similar to the used in dataset with minor difference that there is user/author "name" and the annotation is made jut in single scale.
+
+![reconstruction](figures/imagej-image-pair.jpg)
+
+Tutorial how to put landmarks in set of images step by step:
+1. Open **Fiji**
+2. Load images (optimal is to open complete set)
+3. Click relevant points (landmarks) in all images.
+4. Exporting finally placed landmarks.
+5. Importing existing landmarks if needed.
+
+Structure of the annotation directory:
+```
+DATASET
+ |- [set_name1]
+ |  |- user-[initials1]_scale-[number2]pc
+ |  |   |- [image_name1].csv
+ |  |   |- [image_name2].csv
+ |  |   |  ...
+ |  |   '- [image_name].csv
+ |  |- user-[initials2]_scale-[number1]pc
+ |  |  ...
+ |  |- user-[initials]_scale-[number]pc
+ |  |   |- [image_name2].csv
+ |  |   |  ...
+ |  |   '- [image_name].csv
+ |- [set_name2]
+ | ...
+ '- [set_name]
+```
+
+### Placement relevant points
+
+Because it is not possible to remove already placed landmarks, check if the partial stricture you want to annotate appears in all images before you place first landmark in any image:
+1. Select `Multi-point tool`, note that the points are indexed so you can clearly verify that the actual points are fine.
+2. To move in the image use Move tool and also Zoom to see the details.
+3. Put points (landmarks) to the important parts of the tissue like edges of centroid of bubbles appearing in all cuts of the tissue. Each image should contain about 80 landmarks.
+
+![reconstruction](figures/landmarks-zoom.jpg)
+
+### Work with Export / Import macros
+
+**Exporting finally placed landmarks**
+When all landmarks are placed on all images, export each of them into separate files.
+1. Install macro for export landmarks, such that select `Plugins -> Marcos -> Instal...`
+then select exporting macro `annotations/multiPointSet_export.ijm`.
+2. Select one image and click `Plugins -> Marcos -> exportMultipointSet`.
+3. Chose name the landmark file to be same as the image name without any annex.
+4. The macro automatically exports all landmarks from the image in `.csv` format into chosen directory.
+
+**Importing existing landmarks**
+For concretion already made landmarks or continuation from last time an importing landmarks would be needed to restore landmarks from file (Note, the macro uses `.csv` format).
+1. Install importing macro `annotations/multiPointSet_import.ijm`.
+2. Select one image and click
+`Plugins -> Marcos -> importMultipointSet`.
+3. Then you select demanded landmarks by its name.
+
+
+### Validation
+
+When the landmark placement phase is done we need to check all landmarks are correct. 
+We have an automatic script which take whole image and landmark set and ...
+
+```bash
+python ...
+```
