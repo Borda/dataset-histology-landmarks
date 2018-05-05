@@ -9,6 +9,10 @@ language: python
 
 sudo: false
 
+env:
+  global:
+    - CC_TEST_REPORTER_ID=53c61165ba2bd222535555616b6eb9fa540787f53e5f93be710c9a3c183eb868
+
 python:
   - 2.7
   #- 3.4  # will be deprecated for pandas
@@ -29,6 +33,10 @@ install:
 before_script:
   - mkdir output
   - gcc --version ; python --version ; pip --version ; pwd ; ls -l
+  # code coverage tool
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
 
 script:
 #  - pytest -v --doctest-modules
@@ -36,8 +44,6 @@ script:
 
 after_success:
   - codecov  # public repository on Travis CI
-  # private repository on Travis CI
-  # - codecov -t XXXXXXXXXXXXXXXXXXXXXX
   - coverage xml
-  - python-codacy-coverage -r coverage.xml
+  - if [[ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
   - coverage report

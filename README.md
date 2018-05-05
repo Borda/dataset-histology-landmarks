@@ -1,6 +1,13 @@
 # Dataset: histology landmarks
 
-[![Build Status](https://travis-ci.com/Borda/dataset-histology-landmarks.svg?token=HksCAm7DV2pJNEbsGJH2&branch=master)](https://travis-ci.com/Borda/dataset-histology-landmarks)
+[![Build Status](https://travis-ci.org/Borda/dataset-histology-landmarks.svg?branch=master)](https://travis-ci.org/Borda/dataset-histology-landmarks)
+[![codecov](https://codecov.io/gh/Borda/dataset-histology-landmarks/branch/master/graph/badge.svg)](https://codecov.io/gh/Borda/dataset-histology-landmarks)
+[![Maintainability](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/maintainability)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/test_coverage)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/test_coverage)
+
+- TODO - visualise landmarks 
+- TODO - generate mean & scaled landmarks 
+- TODO - user consensus, landmark error
 
 **Dataset: landmarks for registration of [histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**
 
@@ -81,7 +88,7 @@ DATASET
  '- [set_name]
 ```
 
-### Placement relevant points
+### Placement of relevant points
 
 Because it is not possible to remove already placed landmarks, check if the partial stricture you want to annotate appears in all images before you place first landmark in any image:
 1. Select `Multi-point tool`, note that the points are indexed so you can clearly verify that the actual points are fine.
@@ -116,3 +123,7 @@ We have an automatic script which take whole image and landmark set and ...
 ```bash
 python ...
 ```
+
+## References
+
+J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in IEEE International Conference on Image Processing (ICIP), 2018.
