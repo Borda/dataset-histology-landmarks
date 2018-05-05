@@ -1,0 +1,144 @@
+"""
+According given annotations create a consensus annotations
+and scale it into particular scales used un dataset
+
+>> python run_generate_landmarks.py \
+    -i annotations -d landmarks
+
+Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
+"""
+
+
+import os
+import sys
+import glob
+import logging
+import argparse
+import multiprocessing as mproc
+from functools import partial
+
+import numpy as np
+import pandas as pd
+
+sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
+from handlers import utils
+
+NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
+
+
+def arg_parse_params():
+    """ argument parser from cmd
+
+    SEE: https://docs.python.org/3/library/argparse.html
+    :return {str: ...}:
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--path_annots', type=str, required=False,
+                        help='path to folder with annotations',
+                        default='annotations')
+    parser.add_argument('-d', '--path_dataset', type=str, required=False,
+                        help='path to the output directory - dataset',
+                        default='landmarks')
+    parser.add_argument('--scales', type=int, required=False, nargs='*',
+                        help='scales generated for the dataset',
+                        default=utils.SCALES)
+    parser.add_argument('--nb_jobs', type=int, required=False,
+                        help='number of processes in parallel',
+                        default=NB_THREADS)
+    # parser.add_argument('--visual', required=False, action='store_true',
+    #                     help='export debug visualisations', default=False)
+    args = vars(parser.parse_args())
+    logging.info('ARG PARAMETERS: \n %s', repr(args))
+    for k in (k for k in args if 'path' in k):
+        args[k] = utils.update_path(args[k])
+        assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
+    return args
+
+
+def create_consensus_landmaks(path_set, path_dataset):
+    path_annots = [p for p in glob.glob(os.path.join(path_set, '*'))
+                   if os.path.isdir(p)]
+    logging.debug('>> found annotations: %i', len(path_annots))
+
+    dict_lnds = {}
+    for p_annot in path_annots:
+        u, scale = utils.parse_user_scale(p_annot)
+        list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
+        for p_csv in list_csv:
+            name = os.path.basename(p_csv)
+            if name not in dict_lnds:
+                dict_lnds[name] = []
+            df_base = pd.read_csv(p_csv, index_col=0) * (scale / 100.)
+            dict_lnds[name].append(df_base)
+
+    path_set = utils.create_folder(path_dataset, os.path.basename(path_set))
+    path_scale = utils.create_folder(path_set, utils.FOLDER_SCALE % 100)
+    for name in dict_lnds:
+        # cases where the number od points is different
+        lens = [len(lnd) for lnd in dict_lnds[name]]
+        df = dict_lnds[name][np.argmax(lens)]
+        lens = sorted(set(lens), reverse=True)
+        for l in lens:
+            for ax in ['X', 'Y']:
+                df[ax][:l] = np.mean([lnd[ax].values[:l]
+                                      for lnd in dict_lnds[name]
+                                      if len(lnd) >= l], axis=0)
+        df.to_csv(os.path.join(path_scale, name))
+
+
+def dataset_generate_landmarks(path_annots, path_dataset,
+                               nb_jobs=NB_THREADS):
+    list_sets = [p for p in glob.glob(os.path.join(path_annots, '*'))
+                 if os.path.isdir(p)]
+    logging.info('Found sets: %i', len(list_sets))
+
+    list(utils.wrap_execute_parallel(partial(create_consensus_landmaks,
+                                            path_dataset=path_dataset),
+                                    sorted(list_sets), desc='consensus lnds',
+                                    nb_jobs=nb_jobs))
+
+
+def scale_set_landmarks(path_set, scales=utils.SCALES):
+    path_scale100 = os.path.join(path_set, utils.FOLDER_SCALE % 100)
+    if not os.path.isdir(path_scale100):
+        logging.error('missing base scale 100% in "%s"', path_scale100)
+        return
+    list_csv = glob.glob(os.path.join(path_scale100, '*.csv'))
+    logging.debug('>> found landmarks: %i', len(list_csv))
+    dict_lnds = {os.path.basename(p): pd.read_csv(p, index_col=0)
+                 for p in list_csv}
+    if 100 in scales:
+        scales.remove(100)  # drop the base scale
+    for sc in scales:
+        path_scale = utils.create_folder(path_set, utils.FOLDER_SCALE % sc)
+        for name in dict_lnds:
+            df_scale = dict_lnds[name] * (sc / 100.)
+            df_scale.to_csv(os.path.join(path_scale, name))
+
+
+def dataset_scale_landmarks(path_dataset, scales=utils.SCALES,
+                            nb_jobs=NB_THREADS):
+    list_sets = [p for p in glob.glob(os.path.join(path_dataset, '*'))
+                 if os.path.isdir(p)]
+    logging.info('Found sets: %i', len(list_sets))
+
+    list(utils.wrap_execute_parallel(partial(scale_set_landmarks, scales=scales),
+                                    sorted(list_sets), desc='scaling sets',
+                                    nb_jobs=nb_jobs))
+
+
+def main(params):
+    dataset_generate_landmarks(params['path_annots'], params['path_dataset'],
+                               nb_jobs=params['nb_jobs'])
+    dataset_scale_landmarks(params['path_dataset'], scales=params['scales'],
+                            nb_jobs=params['nb_jobs'])
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    logging.info('running...')
+
+    params = arg_parse_params()
+    main(params)
+
+    logging.info('DONE')
