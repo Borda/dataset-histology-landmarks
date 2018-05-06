@@ -36,13 +36,16 @@ def update_path(path, max_depth=5):
     >>> os.path.isdir(update_path('no-handlers'))
     False
     """
+    path_in = path
     if path.startswith('/'):
         return path
     for _ in range(max_depth):
         if os.path.exists(path):
             break
         path = os.path.join('..', path)
-    return os.path.abspath(path)
+
+    path = os.path.abspath(path) if os.path.exists(path) else path_in
+    return path
 
 
 def wrap_execute_parallel(wrap_func, iterate_vals,

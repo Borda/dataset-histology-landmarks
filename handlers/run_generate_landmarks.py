@@ -55,7 +55,7 @@ def arg_parse_params():
     return args
 
 
-def create_consensus_landmaks(path_set, path_dataset):
+def create_consensus_landmarks(path_set, path_dataset):
     path_annots = [p for p in glob.glob(os.path.join(path_set, '*'))
                    if os.path.isdir(p)]
     logging.debug('>> found annotations: %i', len(path_annots))
@@ -73,9 +73,11 @@ def create_consensus_landmaks(path_set, path_dataset):
 
     path_set = utils.create_folder(path_dataset, os.path.basename(path_set))
     path_scale = utils.create_folder(path_set, utils.FOLDER_SCALE % 100)
+    set_lens = {}
     for name in dict_lnds:
         # cases where the number od points is different
         lens = [len(lnd) for lnd in dict_lnds[name]]
+        set_lens[name] = len(dict_lnds[name])
         df = dict_lnds[name][np.argmax(lens)]
         lens = sorted(set(lens), reverse=True)
         for l in lens:
@@ -84,6 +86,8 @@ def create_consensus_landmaks(path_set, path_dataset):
                                       for lnd in dict_lnds[name]
                                       if len(lnd) >= l], axis=0)
         df.to_csv(os.path.join(path_scale, name))
+    dict_lens = {os.path.basename(path_set): set_lens}
+    return dict_lens
 
 
 def dataset_generate_landmarks(path_annots, path_dataset,
@@ -92,10 +96,12 @@ def dataset_generate_landmarks(path_annots, path_dataset,
                  if os.path.isdir(p)]
     logging.info('Found sets: %i', len(list_sets))
 
-    list(utils.wrap_execute_parallel(partial(create_consensus_landmaks,
-                                            path_dataset=path_dataset),
-                                    sorted(list_sets), desc='consensus lnds',
-                                    nb_jobs=nb_jobs))
+    counts = list(utils.wrap_execute_parallel(partial(create_consensus_landmarks,
+                                                      path_dataset=path_dataset),
+                                              sorted(list_sets),
+                                              desc='consensus lnds',
+                                              nb_jobs=nb_jobs))
+    return counts
 
 
 def scale_set_landmarks(path_set, scales=utils.SCALES):
@@ -109,11 +115,15 @@ def scale_set_landmarks(path_set, scales=utils.SCALES):
                  for p in list_csv}
     if 100 in scales:
         scales.remove(100)  # drop the base scale
+    set_scales = {}
     for sc in scales:
         path_scale = utils.create_folder(path_set, utils.FOLDER_SCALE % sc)
         for name in dict_lnds:
             df_scale = dict_lnds[name] * (sc / 100.)
             df_scale.to_csv(os.path.join(path_scale, name))
+        set_scales[sc] = len(dict_lnds)
+    dict_lens = {os.path.basename(path_set): set_scales}
+    return dict_lens
 
 
 def dataset_scale_landmarks(path_dataset, scales=utils.SCALES,
@@ -122,16 +132,22 @@ def dataset_scale_landmarks(path_dataset, scales=utils.SCALES,
                  if os.path.isdir(p)]
     logging.info('Found sets: %i', len(list_sets))
 
-    list(utils.wrap_execute_parallel(partial(scale_set_landmarks, scales=scales),
-                                    sorted(list_sets), desc='scaling sets',
-                                    nb_jobs=nb_jobs))
+    counts = list(utils.wrap_execute_parallel(partial(scale_set_landmarks,
+                                                      scales=scales),
+                                              sorted(list_sets),
+                                              desc='scaling sets',
+                                              nb_jobs=nb_jobs))
+    return counts
 
 
 def main(params):
-    dataset_generate_landmarks(params['path_annots'], params['path_dataset'],
-                               nb_jobs=params['nb_jobs'])
-    dataset_scale_landmarks(params['path_dataset'], scales=params['scales'],
-                            nb_jobs=params['nb_jobs'])
+    count_gene = dataset_generate_landmarks(params['path_annots'],
+                                            params['path_dataset'],
+                                            nb_jobs=params['nb_jobs'])
+    count_scale = dataset_scale_landmarks(params['path_dataset'],
+                                          scales=params['scales'],
+                                          nb_jobs=params['nb_jobs'])
+    return count_gene, count_scale
 
 
 if __name__ == '__main__':

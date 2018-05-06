@@ -27,12 +27,12 @@ The folder structure is the same as for images so the landmarks share the same n
 DATASET
  |- [set_name1]
  |  |- scale-[number1]pc
- |  |   |- [image_name1].png
+ |  |   |- [image_name1].jpg
  |  |   |- [image_name1].csv
- |  |   |- [image_name2].png
+ |  |   |- [image_name2].jpg
  |  |   |- [image_name2].csv
  |  |   |  ...
- |  |   |- [image_name].png
+ |  |   |- [image_name].jpg
  |  |   '- [image_name].csv
  |  |- scale-[number2]pc
  |  |  ...
