@@ -51,11 +51,12 @@ The landmarks for all images are generated as consensus over all user providing 
 python handlers/run_generate_landmarks.py \
     -a ./annotations -d ./dataset  --scales 10 25 50
 ```
-There is a verification procedure before any new annotation is added the "authorised" annotation.
+All landmarks can be easy visualised as draw points over image and laso showing image pairs and landmark pars where is expected thah thare is main direction of displacement for all landmarks.
 ```bash
 python handlers/run_visualise_landmarks.py \
     -l ./annotations -i ./dataset -o ./output
 ```
+There is a verification procedure before any new annotation is added the "authorised" annotation. First see you did not swap any landmar or disorder them which can be simply ibseved from amin movement direction for all landmarks in all image pairs in a particular sequence. Second, your annotation error should not be significantly larger that a reference.
 
 ## Annotations
 

@@ -30,7 +30,6 @@ sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers import utils
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
-IMAGE_EXT = ['.png', '.jpg']
 
 
 def arg_parse_params():
@@ -66,9 +65,9 @@ def export_visual_set_scale(d_paths):
     # fined relevant images to the given landmarks
     for p_lnds in list_lnds:
         name = os.path.splitext(os.path.basename(p_lnds))[0]
-        list_name_like = glob.glob(os.path.join(d_paths['images'], name +'.*'))
+        list_name_like = glob.glob(os.path.join(d_paths['images'], name + '.*'))
         p_imgs = [p for p in list_name_like
-                  if os.path.splitext(os.path.basename(p))[-1] in IMAGE_EXT]
+                  if os.path.splitext(os.path.basename(p))[-1] in utils.IMAGE_EXT]
         if len(p_imgs) > 0:
             list_lnds_imgs.append((p_lnds, sorted(p_imgs)[0]))
     # if thrre are no images or landmarks, skip it...
@@ -81,14 +80,31 @@ def export_visual_set_scale(d_paths):
     # draw and export image-landmarks
     for p_lnds, p_img in list_lnds_imgs:
         name = os.path.splitext(os.path.basename(p_img))[0]
-        img = np.array(Image.open(p_img))
-        fig = utils.figure_image_landmarks(pd.read_csv(p_lnds), img)
-        fig.savefig(os.path.join(d_paths['output'], name + '.png'))
+        fig = utils.figure_image_landmarks(pd.read_csv(p_lnds),
+                                           np.array(Image.open(p_img)))
+        fig.savefig(os.path.join(d_paths['output'], name + '.pdf'))
+        plt.close(fig)
+    # draw and export PAIRS of image-landmarks
+    name0 = os.path.splitext(os.path.basename(list_lnds_imgs[0][0]))[0]
+    lnd0 = pd.read_csv(list_lnds_imgs[0][0])
+    img0 = np.array(Image.open(list_lnds_imgs[0][1]))
+    for p_lnds, p_img in list_lnds_imgs[1:]:
+        name = os.path.splitext(os.path.basename(p_img))[0]
+        fig = utils.figure_pair_images_landmarks(
+            (lnd0, pd.read_csv(p_lnds)), (img0, np.array(Image.open(p_img))),
+            names=(name0, name))
+        fig.savefig(os.path.join(d_paths['output'],
+                                 'PAIR___%s___AND___%s.pdf' % (name0, name)))
         plt.close(fig)
     return len(list_lnds_imgs)
 
 
 def main(params):
+    assert params['path_landmarks'] != params['path_output'], \
+        'this folder "%s" cannot be used as output' % params['path_output']
+    assert params['path_dataset'] != params['path_output'], \
+        'this folder "%s" cannot be used as output' % params['path_output']
+
     coll_dirs, _ = utils.collect_triple_dir([params['path_landmarks']],
                                             params['path_dataset'],
                                             params['path_output'])

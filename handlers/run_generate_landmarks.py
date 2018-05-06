@@ -45,8 +45,6 @@ def arg_parse_params():
     parser.add_argument('--nb_jobs', type=int, required=False,
                         help='number of processes in parallel',
                         default=NB_THREADS)
-    # parser.add_argument('--visual', required=False, action='store_true',
-    #                     help='export debug visualisations', default=False)
     args = vars(parser.parse_args())
     logging.info('ARG PARAMETERS: \n %s', repr(args))
     for k in (k for k in args if 'path' in k):

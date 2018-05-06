@@ -19,10 +19,16 @@ import matplotlib.pylab as plt
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
 SCALES = [5, 10, 25, 50, 100]
+# template nema for scale folder
 TEMPLATE_FOLDER_SCALE = 'scale-%dpc'
+# regular expresion patters for determining scale and user
 REEXP_FOLDER_ANNOT = 'user-(.\S+)_scale-(\d+)pc'
 REEXP_FOLDER_SCALE = '\S*scale-(\d+)pc'
+# default figure size for visualisations
 FIGURE_SIZE = 18
+# expected image extensions
+IMAGE_EXT = ['.png', '.jpg', '.jpeg']
+COLORS = 'grbm'
 
 
 def update_path(path, max_depth=5):
@@ -176,13 +182,28 @@ def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
     return coll_dirs, []
 
 
+def create_figure(im_size, max_fig_size=FIGURE_SIZE):
+    norm_size = np.array(im_size) / float(np.max(im_size))
+    # reverse dimensions and scale by fig size
+    fig_size = norm_size[::-1] * max_fig_size
+    fig, ax = plt.subplots(figsize=fig_size)
+    return fig, ax
+
+
+def format_figure(fig, ax, im_size, lnds):
+    ax.set_xlim([min(0, np.min(lnds[1])), max(im_size[1], np.max(lnds[1]))])
+    ax.set_ylim([max(im_size[0], np.max(lnds[0])), min(0, np.min(lnds[0]))])
+    fig.tight_layout()
+    return fig
+
+
 def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     """ create a figure with images and landmarks
 
-    :param ndarray landmarks:
-    :param ndarray image:
+    :param ndarray landmarks: landmark coordinates
+    :param ndarray image: 2D image
     :param int max_fig_size:
-    :return:
+    :return Figure:
 
     >>> np.random.seed(0)
     >>> lnds = np.random.randint(-10, 25, (10, 2))
@@ -200,10 +221,7 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     if image is None:
         image = np.zeros(np.max(landmarks, axis=0) + 25)
 
-    norm_size = np.array(image.shape[:2]) / float(np.max(image.shape[:2]))
-    # reverse dimensions and scale by fig size
-    fig_size = norm_size[::-1] * max_fig_size
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = create_figure(image.shape[:2], max_fig_size)
 
     ax.imshow(image)
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'go')
@@ -212,9 +230,70 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     for i, lnd in enumerate(landmarks):
         ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')
 
-    ax.set_xlim([min(0, min(landmarks[0])), max(image.shape[0], max(landmarks[0]))])
-    ax.set_xlim([min(0, min(landmarks[1])), max(image.shape[1], max(landmarks[1]))])
+    fig = format_figure(fig, ax, image.shape[:2], landmarks)
 
-    fig.tight_layout()
+    return fig
+
+
+def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
+                                 max_fig_size=FIGURE_SIZE):
+    """ create a figure with image pair and connect related landmarks by line
+
+    :param (ndarray) pair_landmarks: set of landmark coordinates
+    :param (ndarray) pair_images: set of 2D image
+    :param int max_fig_size:
+    :return Figure:
+
+    >>> np.random.seed(0)
+    >>> lnds = np.random.randint(-10, 25, (10, 2))
+    >>> img = np.random.random((20, 30))
+    >>> fig = figure_pair_images_landmarks((lnds, lnds + 5), (img, img))
+    >>> isinstance(fig, matplotlib.figure.Figure)
+    True
+    >>> df_lnds = pd.DataFrame(lnds, columns=['X', 'Y'])
+    >>> fig = figure_pair_images_landmarks((df_lnds, df_lnds), (img, None))
+    >>> isinstance(fig, matplotlib.figure.Figure)
+    True
+    """
+    assert len(pair_landmarks) == len(pair_images), \
+        'not equal counts for images (%i) and landmarks (%i)' \
+        % (len(pair_landmarks), len(pair_images))
+    pair_landmarks = list(pair_landmarks)
+    pair_images = list(pair_images)
+    for i, landmarks in enumerate(pair_landmarks):
+        if isinstance(landmarks, pd.DataFrame):
+            pair_landmarks[i] = landmarks[['X', 'Y']].values
+    for i, image in enumerate(pair_images):
+        if image is None:
+            pair_images[i] = np.zeros(np.max(pair_landmarks[i], axis=0) + 25)
+
+    im_size = np.max([img.shape[:2] for img in pair_images], axis=0)
+    fig, ax = create_figure(im_size, max_fig_size)
+
+    # draw semi transparent images
+    for image in pair_images:
+        ax.imshow(image, alpha=(1. / len(pair_images)))
+
+    # draw lined between landmarks
+    for i, lnds1 in enumerate(pair_landmarks[1:]):
+        lnds0 = pair_landmarks[i]
+        for (x0, y0), (x1, y1) in zip(lnds0, lnds1):
+            ax.plot([x0, x1], [y0, y1], '-.', color=COLORS[i % len(COLORS)])
+
+    if names is None:
+        names = ['image %i' % i for i in range(len(pair_landmarks))]
+    # draw all landmarks
+    for i, landmarks in enumerate(pair_landmarks):
+        ax.plot(landmarks[:, 0], landmarks[:, 1], 'o',
+                color=COLORS[i % len(COLORS)], label=names[i])
+
+    assert len(pair_landmarks) > 0, 'missing any landmarks'
+    for i, lnd in enumerate(pair_landmarks[0]):
+        ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')
+
+    ax.legend()
+
+    fig = format_figure(fig, ax, im_size, ([lnds[0] for lnds in pair_landmarks],
+                                           [lnds[1] for lnds in pair_landmarks]))
 
     return fig
