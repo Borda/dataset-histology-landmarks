@@ -5,7 +5,6 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/maintainability)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/test_coverage)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/test_coverage)
 
-- TODO - visualise landmarks 
 - TODO - user consensus, landmark error
 
 **Dataset: landmarks for registration of [histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**
@@ -50,12 +49,12 @@ DATASET
 The landmarks for all images are generated as consensus over all user providing they annotation for a particular image set. 
 ```bash
 python handlers/run_generate_landmarks.py \
-    -i annotations -d landmarks  --scales 10 25 50
+    -a ./annotations -d ./dataset  --scales 10 25 50
 ```
 There is a verification procedure before any new annotation is added the "authorised" annotation.
 ```bash
-python scripts/run_.py \
-    ...
+python handlers/run_visualise_landmarks.py \
+    -l ./annotations -i ./dataset -o ./output
 ```
 
 ## Annotations

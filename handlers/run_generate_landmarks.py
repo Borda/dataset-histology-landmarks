@@ -1,9 +1,9 @@
 """
 According given annotations create a consensus annotations
-and scale it into particular scales used un dataset
+and scale it into particular scales used in dataset
 
 >> python run_generate_landmarks.py \
-    -i annotations -d landmarks
+    -a annotations -d dataset
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
@@ -33,12 +33,12 @@ def arg_parse_params():
     :return {str: ...}:
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--path_annots', type=str, required=False,
+    parser.add_argument('-a', '--path_annots', type=str, required=False,
                         help='path to folder with annotations',
                         default='annotations')
     parser.add_argument('-d', '--path_dataset', type=str, required=False,
                         help='path to the output directory - dataset',
-                        default='landmarks')
+                        default='dataset')
     parser.add_argument('--scales', type=int, required=False, nargs='*',
                         help='scales generated for the dataset',
                         default=utils.SCALES)
@@ -62,17 +62,17 @@ def create_consensus_landmarks(path_set, path_dataset):
 
     dict_lnds = {}
     for p_annot in path_annots:
-        u, scale = utils.parse_user_scale(p_annot)
+        u, scale = utils.parse_path_user_scale(p_annot)
         list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
         for p_csv in list_csv:
             name = os.path.basename(p_csv)
             if name not in dict_lnds:
                 dict_lnds[name] = []
-            df_base = pd.read_csv(p_csv, index_col=0) * (scale / 100.)
+            df_base = pd.read_csv(p_csv, index_col=0) / (scale / 100.)
             dict_lnds[name].append(df_base)
 
     path_set = utils.create_folder(path_dataset, os.path.basename(path_set))
-    path_scale = utils.create_folder(path_set, utils.FOLDER_SCALE % 100)
+    path_scale = utils.create_folder(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
     set_lens = {}
     for name in dict_lnds:
         # cases where the number od points is different
@@ -105,7 +105,7 @@ def dataset_generate_landmarks(path_annots, path_dataset,
 
 
 def scale_set_landmarks(path_set, scales=utils.SCALES):
-    path_scale100 = os.path.join(path_set, utils.FOLDER_SCALE % 100)
+    path_scale100 = os.path.join(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
     if not os.path.isdir(path_scale100):
         logging.error('missing base scale 100% in "%s"', path_scale100)
         return
@@ -117,7 +117,8 @@ def scale_set_landmarks(path_set, scales=utils.SCALES):
         scales.remove(100)  # drop the base scale
     set_scales = {}
     for sc in scales:
-        path_scale = utils.create_folder(path_set, utils.FOLDER_SCALE % sc)
+        path_scale = utils.create_folder(path_set,
+                                         utils.TEMPLATE_FOLDER_SCALE % sc)
         for name in dict_lnds:
             df_scale = dict_lnds[name] * (sc / 100.)
             df_scale.to_csv(os.path.join(path_scale, name))
