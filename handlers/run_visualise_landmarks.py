@@ -1,8 +1,7 @@
 """
 Visualise landmarks on images for a particular set/scale or whole dataset
 
->> python run_visualise_landmarks.py \
-    -l dataset -i dataset -o output
+>> python run_visualise_landmarks.py -l dataset -i dataset -o output
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
@@ -85,17 +84,18 @@ def export_visual_set_scale(d_paths):
         fig.savefig(os.path.join(d_paths['output'], name + '.pdf'))
         plt.close(fig)
     # draw and export PAIRS of image-landmarks
-    name0 = os.path.splitext(os.path.basename(list_lnds_imgs[0][0]))[0]
-    lnd0 = pd.read_csv(list_lnds_imgs[0][0])
-    img0 = np.array(Image.open(list_lnds_imgs[0][1]))
-    for p_lnds, p_img in list_lnds_imgs[1:]:
-        name = os.path.splitext(os.path.basename(p_img))[0]
-        fig = utils.figure_pair_images_landmarks(
-            (lnd0, pd.read_csv(p_lnds)), (img0, np.array(Image.open(p_img))),
-            names=(name0, name))
-        fig.savefig(os.path.join(d_paths['output'],
-                                 'PAIR___%s___AND___%s.pdf' % (name0, name)))
-        plt.close(fig)
+    for i, (p_lnds, p_img) in enumerate(list_lnds_imgs):
+        name0 = os.path.splitext(os.path.basename(p_img))[0]
+        lnd0 = pd.read_csv(p_lnds)
+        img0 = np.array(Image.open(p_img))
+        for p_lnds, p_img in list_lnds_imgs[i+1:]:
+            name = os.path.splitext(os.path.basename(p_img))[0]
+            fig = utils.figure_pair_images_landmarks(
+                (lnd0, pd.read_csv(p_lnds)), (img0, np.array(Image.open(p_img))),
+                names=(name0, name))
+            fig.savefig(os.path.join(d_paths['output'],
+                                     'PAIR___%s___AND___%s.pdf' % (name0, name)))
+            plt.close(fig)
     return len(list_lnds_imgs)
 
 

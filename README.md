@@ -2,10 +2,10 @@
 
 [![Build Status](https://travis-ci.org/Borda/dataset-histology-landmarks.svg?branch=master)](https://travis-ci.org/Borda/dataset-histology-landmarks)
 [![codecov](https://codecov.io/gh/Borda/dataset-histology-landmarks/branch/master/graph/badge.svg)](https://codecov.io/gh/Borda/dataset-histology-landmarks)
+[![codebeat badge](https://codebeat.co/badges/3e86ad36-cb0c-430f-a096-a221ca871bb4)](https://codebeat.co/a/jirka-borovec/projects/github-com-borda-dataset-histology-landmarks-master)
 [![Maintainability](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/maintainability)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/test_coverage)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/test_coverage)
 
-- TODO - user consensus, landmark error
 
 **Dataset: landmarks for registration of [histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**
 
@@ -13,14 +13,15 @@ The dataset consists of 2D histological microscopy tissue slices, stained with d
 
 ![reconstruction](figures/images-landmarks.jpg)
 
-The image part of the dataset are available [here](http://cmp.felk.cvut.cz/~borovji3/?page=dataset). **Note** that the accompanied landmarks are the initial from a single a user and the precise landmarks should be obtain by fusion of several users even you can help and improve the annotations.
+The image part of the dataset are available [here](http://cmp.felk.cvut.cz/~borovji3/?page=dataset). **Note** that the accompanied landmarks are the initial from a single a user and the precise landmarks should be obtained by fusion of several users even you can help and improve the annotations.
 
+---
 
 ## Landmarks
 
 The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame (the origin [0, 0] is located in top left corner of the image plane). For handling this landmarks we provide a simple macros for [import](annotations/multiPointSet_import.ijm) and [export](annotations/multiPointSet_export.ijm).
 
-The folder structure is the same as for images so the landmarks share the same names with the image and they are located in the same directory next to images.
+The folder structure is the same as for images, so the landmarks share the same names with the image and they are located in the same directory next to images.
 
 ```
 DATASET
@@ -51,20 +52,22 @@ The landmarks for all images are generated as consensus over all user providing 
 python handlers/run_generate_landmarks.py \
     -a ./annotations -d ./dataset  --scales 10 25 50
 ```
-All landmarks can be easy visualised as draw points over image and laso showing image pairs and landmark pars where is expected thah thare is main direction of displacement for all landmarks.
+All landmarks can be easy visualized as draw points over an image and also show image pairs and landmark pars where is expected that there is the main direction of displacement for all landmarks (estimating affine transformation).
 ```bash
 python handlers/run_visualise_landmarks.py \
-    -l ./annotations -i ./dataset -o ./output
+    -l ./dataset -i ./dataset -o ./output
 ```
-There is a verification procedure before any new annotation is added the "authorised" annotation. First see you did not swap any landmar or disorder them which can be simply ibseved from amin movement direction for all landmarks in all image pairs in a particular sequence. Second, your annotation error should not be significantly larger that a reference.
+There is a verification procedure before any new annotation is added the "authorised" annotation. First, see you did not swap any landmark or disorder them which can be simply observed from main movement direction for all landmarks in all image pairs in a particular sequence. Second, your annotation error should not be significantly larger than a reference.
+
+---
 
 ## Annotations
 
-The annotation is a collection of landmarks placement from several users. The structure is similar to the used in dataset with minor difference that there is user/author "name" and the annotation is made jut in single scale.
+The annotation is a collection of landmarks placement from several users. The structure is similar to the used in the dataset with the minor difference that there is user/author "name" and the annotation is made jut in a single scale.
 
 ![reconstruction](figures/imagej-image-pair.jpg)
 
-Tutorial how to put landmarks in set of images step by step:
+Tutorial how to put landmarks in a set of images step by step:
 1. Open **Fiji**
 2. Load images (optimal is to open complete set)
 3. Click relevant points (landmarks) in all images.
@@ -93,10 +96,10 @@ DATASET
 
 ### Placement of relevant points
 
-Because it is not possible to remove already placed landmarks, check if the partial stricture you want to annotate appears in all images before you place first landmark in any image:
-1. Select `Multi-point tool`, note that the points are indexed so you can clearly verify that the actual points are fine.
+Because it is not possible to remove already placed landmarks, check if the partial stricture you want to annotate appears in all images before you place the first landmark in any image:
+1. Select `Multi-point tool`, note that the points are indexed so you can verify that the actual points are fine.
 2. To move in the image use Move tool and also Zoom to see the details.
-3. Put points (landmarks) to the important parts of the tissue like edges of centroid of bubbles appearing in all cuts of the tissue. Each image should contain about 80 landmarks.
+3. Put points (landmarks) to the important parts of the tissue like edges of a centroid of bubbles appearing in all cuts of the tissue. Each image should contain about 80 landmarks.
 
 ![reconstruction](figures/landmarks-zoom.jpg)
 
@@ -107,11 +110,11 @@ When all landmarks are placed on all images, export each of them into separate f
 1. Install macro for export landmarks, such that select `Plugins -> Marcos -> Instal...`
 then select exporting macro `annotations/multiPointSet_export.ijm`.
 2. Select one image and click `Plugins -> Marcos -> exportMultipointSet`.
-3. Chose name the landmark file to be same as the image name without any annex.
+3. Chose a name the landmark file to be same as the image name without any annex.
 4. The macro automatically exports all landmarks from the image in `.csv` format into chosen directory.
 
 **Importing existing landmarks**
-For concretion already made landmarks or continuation from last time an importing landmarks would be needed to restore landmarks from file (Note, the macro uses `.csv` format).
+For concretion already made landmarks or continuation from last time, importing landmarks would be needed to restore landmarks from a file (Note, the macro uses `.csv` format).
 1. Install importing macro `annotations/multiPointSet_import.ijm`.
 2. Select one image and click
 `Plugins -> Marcos -> importMultipointSet`.
@@ -120,12 +123,19 @@ For concretion already made landmarks or continuation from last time an importin
 
 ### Validation
 
-When the landmark placement phase is done we need to check all landmarks are correct. 
-We have an automatic script which take whole image and landmark set and ...
-
+When the landmark placement phase is done, we need to check all landmarks are correct. 
+We also compute statistic of landmarks annotation of each user to the consensus and save it into a file. Then you should have focused on landmarks where STD or maximal value exceed a usual value.
 ```bash
-python ...
+python handlers/run_evaluate_landmarks.py \
+    -a ./annotations -o ./output
 ```
+If you find such suspicious annotation, perform a visual inspection
+```bash
+python handlers/run_visualise_landmarks.py \
+    -l ./annotations -i ./dataset -o ./output
+```
+
+---
 
 ## References
 

@@ -2,8 +2,7 @@
 According given annotations create a consensus annotations
 and scale it into particular scales used in dataset
 
->> python run_generate_landmarks.py \
-    -a annotations -d dataset
+>> python run_generate_landmarks.py -a annotations -d dataset
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
@@ -53,39 +52,19 @@ def arg_parse_params():
     return args
 
 
-def create_consensus_landmarks(path_set, path_dataset):
+def generate_consensus_landmarks(path_set, path_dataset):
     path_annots = [p for p in glob.glob(os.path.join(path_set, '*'))
                    if os.path.isdir(p)]
     logging.debug('>> found annotations: %i', len(path_annots))
 
-    dict_lnds = {}
-    for p_annot in path_annots:
-        u, scale = utils.parse_path_user_scale(p_annot)
-        list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
-        for p_csv in list_csv:
-            name = os.path.basename(p_csv)
-            if name not in dict_lnds:
-                dict_lnds[name] = []
-            df_base = pd.read_csv(p_csv, index_col=0) / (scale / 100.)
-            dict_lnds[name].append(df_base)
+    dict_lnds, dict_lens = utils.create_consensus_landmarks(path_annots)
 
     path_set = utils.create_folder(path_dataset, os.path.basename(path_set))
     path_scale = utils.create_folder(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
-    set_lens = {}
     for name in dict_lnds:
-        # cases where the number od points is different
-        lens = [len(lnd) for lnd in dict_lnds[name]]
-        set_lens[name] = len(dict_lnds[name])
-        df = dict_lnds[name][np.argmax(lens)]
-        lens = sorted(set(lens), reverse=True)
-        for l in lens:
-            for ax in ['X', 'Y']:
-                df[ax][:l] = np.mean([lnd[ax].values[:l]
-                                      for lnd in dict_lnds[name]
-                                      if len(lnd) >= l], axis=0)
-        df.to_csv(os.path.join(path_scale, name))
-    dict_lens = {os.path.basename(path_set): set_lens}
-    return dict_lens
+        dict_lnds[name].to_csv(os.path.join(path_scale, name))
+
+    return {os.path.basename(path_set): dict_lens}
 
 
 def dataset_generate_landmarks(path_annots, path_dataset,
@@ -94,7 +73,7 @@ def dataset_generate_landmarks(path_annots, path_dataset,
                  if os.path.isdir(p)]
     logging.info('Found sets: %i', len(list_sets))
 
-    counts = list(utils.wrap_execute_parallel(partial(create_consensus_landmarks,
+    counts = list(utils.wrap_execute_parallel(partial(generate_consensus_landmarks,
                                                       path_dataset=path_dataset),
                                               sorted(list_sets),
                                               desc='consensus lnds',

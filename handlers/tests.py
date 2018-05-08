@@ -8,9 +8,12 @@ import os
 import sys
 import multiprocessing as mproc
 
+import numpy as np
+
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 
 import handlers.utils as utils
+import handlers.run_evaluate_landmarks as r_eval
 import handlers.run_generate_landmarks as r_generate
 import handlers.run_visualise_landmarks as r_visual
 
@@ -22,6 +25,14 @@ assert os.path.isdir(PATH_DATASET), 'missing dataset: %s' % PATH_DATASET
 PATH_OUTPUT = utils.update_path('output')
 if not os.path.isdir(PATH_OUTPUT):
     os.mkdir(PATH_OUTPUT)
+
+
+def test_00_evaluate_landmarks():
+    params = {'path_annots': PATH_ANNOTATIONS,
+              'path_output': PATH_OUTPUT,
+              'nb_jobs': 1}  # coverage is not able to track in parallelism
+    counts = r_eval.main(params)
+    assert np.sum(counts) > 0, 'nothing evaluated'
 
 
 def test_01_generate_landmarks():
@@ -45,5 +56,6 @@ def test_02_visualise_landmarks():
 
 
 if __name__ == '__main__':
+    test_00_evaluate_landmarks()
     test_01_generate_landmarks()
     test_02_visualise_landmarks()

@@ -140,6 +140,34 @@ def parse_path_scale(path):
     return scale
 
 
+def landmarks_consensus(list_landmarks):
+    """ compute consensus as mean over all landmarks
+
+    :param [DF] list_landmarks: list of DataFrames
+    :return DF:
+
+    >>> lnds1 = pd.DataFrame(np.zeros((5, 2)), columns=['X', 'Y'])
+    >>> lnds2 = pd.DataFrame(np.ones((6, 2)), columns=['X', 'Y'])
+    >>> landmarks_consensus([lnds1, lnds2])
+         X    Y
+    0  0.5  0.5
+    1  0.5  0.5
+    2  0.5  0.5
+    3  0.5  0.5
+    4  0.5  0.5
+    5  1.0  1.0
+    """
+    lens = [len(lnd) for lnd in list_landmarks]
+    df = list_landmarks[np.argmax(lens)]
+    lens = sorted(set(lens), reverse=True)
+    for l in lens:
+        for ax in ['X', 'Y']:
+            df[ax][:l] = np.mean([lnd[ax].values[:l]
+                                  for lnd in list_landmarks
+                                  if len(lnd) >= l], axis=0)
+    return df
+
+
 def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
     """ collect all subdir up to level of scales
 
@@ -180,6 +208,152 @@ def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
             'output': os.path.join(path_out, set_name, scale_name)
         })
     return coll_dirs, []
+
+
+def estimate_affine_transform(points_0, points_1):
+    """ estimate Affine transformations and warp particular points sets
+    to the other coordinate frame
+
+    :param ndarray points_0: set of points
+    :param ndarray points_1: set of points
+    :return (ndarray, ndarray, ndarray): transform. matrix and warped point sets
+
+    >>> pts0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.]], dtype=int)
+    >>> pts1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.]])
+    >>> matrix, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
+    >>> np.round(matrix, 2)
+    array([[ -1.,   0.,  -0.],
+           [  0.,   1.,  -0.],
+           [ 65., -60.,   1.]])
+    >>> pts0_w
+    array([[ 61.,  56.],
+           [ 61., -56.],
+           [ 39., -56.],
+           [ 39.,  56.]])
+    >>> pts1_w
+    array([[   4.,  116.],
+           [   4.,    4.],
+           [  26.,    4.],
+           [  26.,  116.]])
+    """
+    # SEE: https://stackoverflow.com/questions/20546182
+    nb = min(len(points_0), len(points_1))
+    # Pad the data with ones, so that our transformation can do translations
+    pad = lambda x: np.hstack([x, np.ones((x.shape[0], 1))])
+    unpad = lambda x: x[:, :-1]
+    x = pad(points_0[:nb])
+    y = pad(points_1[:nb])
+
+    # Solve the least squares problem X * A = Y to find our transform. matrix A
+    matrix, res, rank, s = np.linalg.lstsq(x, y)
+
+    transform = lambda x: unpad(np.dot(pad(x), matrix))
+    points_0_warp = transform(points_0)
+
+    transform_inv = lambda x: unpad(np.dot(pad(x), np.linalg.pinv(matrix)))
+    points_1_warp = transform_inv(points_1)
+
+    return matrix, points_0_warp, points_1_warp
+
+
+def estimate_landmark_outliers(points_0, points_1, std_coef=3):
+    """ estimated landmark outliers after affine alignment
+
+    :param ndarray points_0: set ot points
+    :param ndarray points_1: set ot points
+    :return ([bool], [float]): vector or binary outliers and computed error
+
+    >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
+    ...                   [18, 45], [0, 0], [-12, 8], [1, 1]])
+    >>> lnds1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.],
+    ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
+    >>> out, err = estimate_landmark_outliers(lnds0, lnds1)
+    >>> out.astype(int)
+    array([0, 0, 0, 0, 0, 0, 0, 1])
+    >>> np.round(err, 2)
+    array([  1.02,  16.78,  10.29,   5.47,   6.88,  18.52,  20.94,  68.96])
+    """
+    nb = min(len(points_0), len(points_1))
+    _, points_0w, _ = estimate_affine_transform(points_0[:nb], points_1[:nb])
+    err = np.sqrt(np.sum((points_1[:nb] - points_0w) ** 2, axis=1))
+    norm = np.std(err) * std_coef
+    out = (err > norm)
+    return out, err
+
+
+def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
+    """ compute statistic on errors between reference and sensed landamrks
+
+    :param ndarray landmarks_ref:
+    :param ndarray landmarks_in:
+    :return:
+
+    >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
+    ...                   [18, 45], [0, 0], [-12, 8], [1, 1]])
+    >>> lnds1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.],
+    ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
+    >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, use_affine=True)
+    >>> [(k, np.round(d_stat[k])) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE
+    [('count', 8.0),
+     ('image_diagonal', 86.0),
+     ('image_size', array([ 65.,  56.])),
+     ('max', 69.0),
+     ('mean', 19.0),
+     ('median', 14.0),
+     ('min', 1.0),
+     ('std', 21.0)]
+    >>> d_stat = compute_landmarks_statistic(lnds0, lnds1)
+    >>> d_stat['mean']  # doctest: +ELLIPSIS
+    69.0189...
+    """
+    if isinstance(landmarks_ref, pd.DataFrame):
+        landmarks_ref = landmarks_ref[['X', 'Y']].values
+    if isinstance(landmarks_in, pd.DataFrame):
+        landmarks_in = landmarks_in[['X', 'Y']].values
+
+    if use_affine:
+        _, err = estimate_landmark_outliers(landmarks_ref, landmarks_in)
+    else:
+        nb = min(len(landmarks_ref), len(landmarks_in))
+        err = np.sqrt(np.sum((landmarks_ref[:nb] - landmarks_in[:nb]) ** 2,
+                             axis=1))
+    df_err = pd.DataFrame(err)
+    df_stat = df_err.describe().T[['count', 'mean', 'std', 'min', 'max']]
+    d_stat = dict(df_stat.iloc[0])
+    d_stat['median'] = np.median(err)
+
+    landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
+    im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
+    d_stat['image_size'] = im_size.tolist()
+    d_stat['image_diagonal'] = np.sqrt(np.sum(im_size ** 2))
+
+    return d_stat
+
+
+def create_consensus_landmarks(path_annots):
+    """ create a consesus on set of landmarks
+
+    :param [str] path_annots:
+    :return {str: DF}:
+    """
+    dict_list_lnds = {}
+    for p_annot in path_annots:
+        _, scale = parse_path_user_scale(p_annot)
+        list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
+        for p_csv in list_csv:
+            name = os.path.basename(p_csv)
+            if name not in dict_list_lnds:
+                dict_list_lnds[name] = []
+            df_base = pd.read_csv(p_csv, index_col=0) / (scale / 100.)
+            dict_list_lnds[name].append(df_base)
+
+    dict_lnds, dict_lens = {}, {}
+    for name in dict_list_lnds:
+        dict_lens[name] = len(dict_list_lnds[name])
+        # cases where the number od points is different
+        df = landmarks_consensus(dict_list_lnds[name])
+        dict_lnds[name] = df
+    return dict_lnds, dict_lens
 
 
 def create_figure(im_size, max_fig_size=FIGURE_SIZE):
@@ -277,8 +451,10 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     # draw lined between landmarks
     for i, lnds1 in enumerate(pair_landmarks[1:]):
         lnds0 = pair_landmarks[i]
-        for (x0, y0), (x1, y1) in zip(lnds0, lnds1):
-            ax.plot([x0, x1], [y0, y1], '-.', color=COLORS[i % len(COLORS)])
+        outliers, _ = estimate_landmark_outliers(lnds0, lnds1)
+        for (x0, y0), (x1, y1), out in zip(lnds0, lnds1, outliers):
+            ln = '-' if out else '-.'
+            ax.plot([x0, x1], [y0, y1], ln, color=COLORS[i % len(COLORS)])
 
     if names is None:
         names = ['image %i' % i for i in range(len(pair_landmarks))]

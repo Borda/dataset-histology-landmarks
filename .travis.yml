@@ -42,6 +42,7 @@ script:
 #  - pytest -v --doctest-modules
   - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=handlers  # --ignore-files=*.ijm
 
+  - python handlers/run_evaluate_landmarks.py -a ./annotations -o ./output
   - python handlers/run_generate_landmarks.py -a ./annotations -d ./dataset --scales 5
   - python handlers/run_visualise_landmarks.py -l ./dataset -i ./dataset -o ./output
 
