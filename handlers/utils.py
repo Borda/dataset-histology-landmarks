@@ -256,7 +256,7 @@ def estimate_affine_transform(points_0, points_1):
     return matrix, points_0_warp, points_1_warp
 
 
-def estimate_landmark_outliers(points_0, points_1, std_coef=3):
+def estimate_landmark_outliers(points_0, points_1, std_coef=5):
     """ estimated landmark outliers after affine alignment
 
     :param ndarray points_0: set ot points
@@ -267,7 +267,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     ...                   [18, 45], [0, 0], [-12, 8], [1, 1]])
     >>> lnds1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.],
     ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
-    >>> out, err = estimate_landmark_outliers(lnds0, lnds1)
+    >>> out, err = estimate_landmark_outliers(lnds0, lnds1, std_coef=3)
     >>> out.astype(int)
     array([0, 0, 0, 0, 0, 0, 0, 1])
     >>> np.round(err, 2)
@@ -330,13 +330,14 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
     return d_stat
 
 
-def create_consensus_landmarks(path_annots):
+def create_consensus_landmarks(path_annots, equal_size=True):
     """ create a consesus on set of landmarks
 
     :param [str] path_annots:
     :return {str: DF}:
     """
     dict_list_lnds = {}
+    # find all landmars for particular image
     for p_annot in path_annots:
         _, scale = parse_path_user_scale(p_annot)
         list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
@@ -348,11 +349,18 @@ def create_consensus_landmarks(path_annots):
             dict_list_lnds[name].append(df_base)
 
     dict_lnds, dict_lens = {}, {}
+    # create consensus over particular landmarks
     for name in dict_list_lnds:
         dict_lens[name] = len(dict_list_lnds[name])
         # cases where the number od points is different
         df = landmarks_consensus(dict_list_lnds[name])
         dict_lnds[name] = df
+
+    # take the minimal set or landmarks over whole set
+    if equal_size and len(dict_lnds) > 0:
+        nb_min = min([len(dict_lnds[n]) for n in dict_lnds])
+        dict_lnds = {n: dict_lnds[n][:nb_min] for n in dict_lnds}
+
     return dict_lnds, dict_lens
 
 
