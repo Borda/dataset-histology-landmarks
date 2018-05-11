@@ -21,6 +21,17 @@ The image part of the dataset are available [here](http://cmp.felk.cvut.cz/~boro
 
 The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame (the origin [0, 0] is located in top left corner of the image plane). For handling this landmarks we provide a simple macros for [import](annotations/multiPointSet_import.ijm) and [export](annotations/multiPointSet_export.ijm).
 
+The landmark file is as follows:
+```
+ ,X,Y
+1,226,173
+2,256,171
+3,278,182
+4,346,207
+...
+```
+ and it can be simply imported by `pandas`
+
 The folder structure is the same as for images, so the landmarks share the same names with the image and they are located in the same directory next to images.
 
 ```
@@ -134,6 +145,13 @@ If you find such suspicious annotation, perform a visual inspection
 python handlers/run_visualise_landmarks.py \
     -l ./annotations -i ./dataset -o ./output
 ```
+
+In the visualization, the landmarks pairs in both images are connected by a line. 
+We compute an affine transformation in between the two sets of landmarks and error between landmarks in the second image and warped landmarks from the first image. 
+Then we landmarks are connected by a straight line if the error is larger then a 5 STD we consider them as suspicions (wrong localization or large elastic deformation). 
+Otherwise the pair is connected by a dotted line.
+
+![landmarks-pairs](figures/PAIR___29-041-Izd2-w35-CD31-3-les3_tif-Fused___AND___29-041-Izd2-w35-proSPC-4-les3_tif-Fused.jpg)
 
 ---
 
