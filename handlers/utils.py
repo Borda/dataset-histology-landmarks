@@ -64,7 +64,7 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
     :param int nb_jobs: number og jobs running in parallel
     :param str desc: description for the bar
 
-    >>> [o for o in wrap_execute_parallel(lambda x: x ** 2, range(5), nb_jobs=1)]
+    >>> [o for o in wrap_execute_parallel(lambda pts: pts ** 2, range(5), nb_jobs=1)]
     [0, 1, 4, 9, 16]
     >>> [o for o in wrap_execute_parallel(sum, [[0, 1]] * 5, nb_jobs=2)]
     [1, 1, 1, 1, 1]
@@ -113,7 +113,7 @@ def parse_path_user_scale(path):
     path = os.path.basename(path)
     obj = re.match(REEXP_FOLDER_ANNOT, path)
     if obj is None:
-        return ('', np.nan)
+        return '', np.nan
     user, scale = obj.groups()
     scale = int(scale)
     return user, scale
@@ -239,18 +239,18 @@ def estimate_affine_transform(points_0, points_1):
     # SEE: https://stackoverflow.com/questions/20546182
     nb = min(len(points_0), len(points_1))
     # Pad the data with ones, so that our transformation can do translations
-    pad = lambda x: np.hstack([x, np.ones((x.shape[0], 1))])
-    unpad = lambda x: x[:, :-1]
+    pad = lambda pts: np.hstack([pts, np.ones((pts.shape[0], 1))])
+    unpad = lambda pts: pts[:, :-1]
     x = pad(points_0[:nb])
     y = pad(points_1[:nb])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
     matrix, res, rank, s = np.linalg.lstsq(x, y)
 
-    transform = lambda x: unpad(np.dot(pad(x), matrix))
+    transform = lambda pts: unpad(np.dot(pad(pts), matrix))
     points_0_warp = transform(points_0)
 
-    transform_inv = lambda x: unpad(np.dot(pad(x), np.linalg.pinv(matrix)))
+    transform_inv = lambda pts: unpad(np.dot(pad(pts), np.linalg.pinv(matrix)))
     points_1_warp = transform_inv(points_1)
 
     return matrix, points_0_warp, points_1_warp
@@ -261,6 +261,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=5):
 
     :param ndarray points_0: set ot points
     :param ndarray points_1: set ot points
+    :param float std_coef:
     :return ([bool], [float]): vector or binary outliers and computed error
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
@@ -286,6 +287,7 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
 
     :param ndarray landmarks_ref:
     :param ndarray landmarks_in:
+    :param bool use_affine:
     :return:
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
@@ -334,6 +336,7 @@ def create_consensus_landmarks(path_annots, equal_size=True):
     """ create a consesus on set of landmarks
 
     :param [str] path_annots:
+    :param bool equal_size:
     :return {str: DF}:
     """
     dict_list_lnds = {}
@@ -423,6 +426,7 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
 
     :param (ndarray) pair_landmarks: set of landmark coordinates
     :param (ndarray) pair_images: set of 2D image
+    :param [str] names: names
     :param int max_fig_size:
     :return Figure:
 

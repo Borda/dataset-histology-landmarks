@@ -13,7 +13,6 @@ import glob
 import logging
 import argparse
 import multiprocessing as mproc
-from functools import partial
 
 import matplotlib
 if os.environ.get('DISPLAY', '') == '':
@@ -84,8 +83,8 @@ def export_visual_set_scale(d_paths):
         fig.savefig(os.path.join(d_paths['output'], name + '.pdf'))
         plt.close(fig)
     # draw and export PAIRS of image-landmarks
-    for i, (p_lnds, p_img) in enumerate(list_lnds_imgs):
-        name0 = os.path.splitext(os.path.basename(p_img))[0]
+    for i, (p_lnds, p_img0) in enumerate(list_lnds_imgs):
+        name0 = os.path.splitext(os.path.basename(p_img0))[0]
         lnd0 = pd.read_csv(p_lnds)
         img0 = np.array(Image.open(p_img))
         for p_lnds, p_img in list_lnds_imgs[i+1:]:

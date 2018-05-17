@@ -16,7 +16,6 @@ import argparse
 import multiprocessing as mproc
 from functools import partial
 
-import numpy as np
 import pandas as pd
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root

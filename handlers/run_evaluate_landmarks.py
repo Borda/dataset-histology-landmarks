@@ -15,15 +15,12 @@ import argparse
 import multiprocessing as mproc
 from functools import partial
 
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers import utils
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
-
 
 
 def arg_parse_params():
