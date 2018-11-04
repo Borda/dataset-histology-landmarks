@@ -9,19 +9,19 @@
 
 **Dataset: landmarks for registration of [histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**
 
-The dataset consists of 2D histological microscopy tissue slices, stained with different stains. The main challenges for these images are the following: very large image size, appearance differences, and lack of distinctive appearance objects. Our dataset contains 108 image pars and manually placed landmarks for registration quality evaluation.
+The dataset consists of 2D histological microscopy tissue slices differently stained. The main challenges for the registration of these images are the following: very large image size, appearance differences, and lack of distinctive appearance objects. Our dataset contains 108 image pars and manually placed landmarks for registration quality evaluation.
 
 ![reconstruction](figures/images-landmarks.jpg)
 
-The image part of the dataset are available [here](http://cmp.felk.cvut.cz/~borovji3/?page=dataset). **Note** that the accompanied landmarks are the initial from a single a user and the precise landmarks should be obtained by fusion of several users even you can help and improve the annotations.
+The images composing the dataset are available [here](http://cmp.felk.cvut.cz/~borovji3/?page=dataset). **Note** that the available landmarks are the result from a single user annotation. This is a work in progress. It would be interesting to have more precise landmarks computed as the fusion of several users' annotations. Please, consider to contribute to the task!
 
 ---
 
 ## Landmarks
 
-The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame (the origin [0, 0] is located in top left corner of the image plane). For handling this landmarks we provide a simple macros for [import](annotations/multiPointSet_import.ijm) and [export](annotations/multiPointSet_export.ijm).
+The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame. The origin [0, 0] is located in top left corner of the image plane. For handling these landmarks, we provide a simple macro for [importing](annotations/multiPointSet_import.ijm) and another one for [exporting](annotations/multiPointSet_export.ijm).
 
-The landmark file is as follows:
+The structure of the landmarks file is as follows:
 ```
  ,X,Y
 1,226,173
@@ -30,9 +30,9 @@ The landmark file is as follows:
 4,346,207
 ...
 ```
- and it can be simply imported by `pandas`
+ and it can be simply imported by `pandas`.
 
-The folder structure is the same as for images, so the landmarks share the same names with the image and they are located in the same directory next to images.
+The landmarks files are stored in the same folder as their corresponding images and share the same name. 
 
 ```
 DATASET
@@ -58,32 +58,33 @@ DATASET
  '- [set_name]
 ```
 
-The landmarks for all images are generated as consensus over all user providing they annotation for a particular image set. 
+The landmarks for all the images are generated as consensus over all the available expert annotations: 
 ```bash
 python handlers/run_generate_landmarks.py \
     -a ./annotations -d ./dataset  --scales 10 25 50
 ```
-All landmarks can be easy visualized as draw points over an image and also show image pairs and landmark pars where is expected that there is the main direction of displacement for all landmarks (estimating affine transformation).
+A routine to visualize the landmarks overlay on the histological image has been created. It is also possible to visualize histological images pairs and the correspondence between the landmarks pairs. Namely, the landmarks pairs in both images are connected by a line.  It is expected that in this case, the landmarks' main direction of displacement can be observed and the affine transformation relating the pair of images, estimated.
+
 ```bash
 python handlers/run_visualise_landmarks.py \
     -l ./dataset -i ./dataset -o ./output
 ```
-There is a verification procedure before any new annotation is added the "authorised" annotation. First, see you did not swap any landmark or disorder them which can be simply observed from main movement direction for all landmarks in all image pairs in a particular sequence. Second, your annotation error should not be significantly larger than a reference.
+There is a verification procedure before any new annotation is added to the "authorised" annotation. First, it is checked that you did not swap any landmark or disorder them. This can be simply observed from the main displacement direction of all the landmarks in a particular sequence of images pairs. Second, the error of the new annotation should not be significantly larger than that of a reference annotation. 
 
 ---
 
 ## Annotations
 
-The annotation is a collection of landmarks placement from several users. The structure is similar to the used in the dataset with the minor difference that there is user/author "name" and the annotation is made jut in a single scale.
+The annotation is a collection of landmarks placed by several users. The structure is similar to the one used in the dataset with the minor difference that there is user/author "name" and the annotation is made just in a single scale.
 
 ![reconstruction](figures/imagej-image-pair.jpg)
 
 Tutorial how to put landmarks in a set of images step by step:
 1. Open **Fiji**
-2. Load images (optimal is to open complete set)
+2. Load the images. It is optimal to open the complete set. 
 3. Click relevant points (landmarks) in all images.
-4. Exporting finally placed landmarks.
-5. Importing existing landmarks if needed.
+4. Export the placed landmarks.
+5. Import the existing landmarks if needed.
 
 Structure of the annotation directory:
 ```
@@ -107,49 +108,45 @@ DATASET
 
 ### Placement of relevant points
 
-Because it is not possible to remove already placed landmarks, check if the partial stricture you want to annotate appears in all images before you place the first landmark in any image:
+Because it is not possible to remove already placed landmarks, check if the partial structure you plan to annotate appears in all images before you place the first landmark in any image:
 1. Select `Multi-point tool`, note that the points are indexed so you can verify that the actual points are fine.
 2. To move in the image use Move tool and also Zoom to see the details.
-3. Put points (landmarks) to the important parts of the tissue like edges of a centroid of bubbles appearing in all cuts of the tissue. Each image should contain about 80 landmarks.
+3. Place landmarks in significan structures of the tissue like edges or alveolar sac centroids appearing in all cuts of the tissue. Each image should contain about 80 landmarks.
 
 ![reconstruction](figures/landmarks-zoom.jpg)
 
 ### Work with Export / Import macros
 
 **Exporting finally placed landmarks**
-When all landmarks are placed on all images, export each of them into separate files.
-1. Install macro for export landmarks, such that select `Plugins -> Marcos -> Instal...`
-then select exporting macro `annotations/multiPointSet_export.ijm`.
+When you finish to place landmarks on all the images, export each of them into separate files.
+1. Install macro to export landmarks: Select `Plugins -> Marcos -> Install...`
+and then, select exporting macro `annotations/multiPointSet_export.ijm`.
 2. Select one image and click `Plugins -> Marcos -> exportMultipointSet`.
-3. Chose a name the landmark file to be same as the image name without any annex.
-4. The macro automatically exports all landmarks from the image in `.csv` format into chosen directory.
+3. Choose for the landmark file the same name as the one of the image (without any annex).
+4. The macro automatically exports all landmarks corresponding to the image in `.csv` format to the chosen directory.
 
 **Importing existing landmarks**
-For concretion already made landmarks or continuation from last time, importing landmarks would be needed to restore landmarks from a file (Note, the macro uses `.csv` format).
+When you need to correct for previously stored landmarks or to continue annotating an image, load the landmarks from a file using the importing existing landmarks macro. Note that the macro uses `.csv` format.
 1. Install importing macro `annotations/multiPointSet_import.ijm`.
 2. Select one image and click
 `Plugins -> Marcos -> importMultipointSet`.
-3. Then you select demanded landmarks by its name.
+3. Then, the correct landmarks set can be selected by its name. 
 
 
 ### Validation
 
-When the landmark placement phase is done, we need to check all landmarks are correct. 
-We also compute statistic of landmarks annotation of each user to the consensus and save it into a file. Then you should have focused on landmarks where STD or maximal value exceed a usual value.
+When the landmarks annotation is finished, it is checked that all landmarks are correctly placed. Besides, statistics are computed on the landmarks annotation made by each expert in relation to the consensus and are saved in a file. Then, you need to focus on landmarks where the standard deviation or the maximal error value exceed a reasonable value.
 ```bash
 python handlers/run_evaluate_landmarks.py \
     -a ./annotations -o ./output
 ```
-If you find such suspicious annotation, perform a visual inspection
+If you find such suspicious annotations, perform a visual inspection
 ```bash
 python handlers/run_visualise_landmarks.py \
     -l ./annotations -i ./dataset -o ./output
 ```
 
-In the visualization, the landmarks pairs in both images are connected by a line. 
-We compute an affine transformation in between the two sets of landmarks and error between landmarks in the second image and warped landmarks from the first image. 
-Then we landmarks are connected by a straight line if the error is larger then a 5 STD we consider them as suspicions (wrong localization or large elastic deformation). 
-Otherwise the pair is connected by a dotted line.
+In the visualization, the landmarks pairs in both images are connected by a line. An affine transformation is computed between the two sets of landmarks. Then,the error between the landmarks in the second image and the warped landmarks computed from the second image are computed. Finally, if the error is larger than five standard deviations, we consider them as a suspicious pair (either the result of a wrong localization of a large elastic deformation). In the visualization, they are connected by a straight line. Otherwise, the landmark pair si connected by a dotted line. 
 
 ![landmarks-pairs](figures/PAIR___29-041-Izd2-w35-CD31-3-les3_tif-Fused___AND___29-041-Izd2-w35-proSPC-4-les3_tif-Fused.jpg)
 
@@ -157,4 +154,4 @@ Otherwise the pair is connected by a dotted line.
 
 ## References
 
-J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in IEEE International Conference on Image Processing (ICIP), 2018.
+J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in 2018 25th IEEE International Conference on Image Processing (ICIP), p. 3368-3372, 2018.
