@@ -148,7 +148,7 @@ python handlers/run_visualise_landmarks.py \
 
 In the visualization, the landmarks pairs in both images are connected by a line. An affine transformation is computed between the two sets of landmarks. Then,the error between the landmarks in the second image and the warped landmarks computed from the second image are computed. Finally, if the error is larger than five standard deviations, we consider them as a suspicious pair (either the result of a wrong localization of a large elastic deformation). In the visualization, they are connected by a straight line. Otherwise, the landmark pair si connected by a dotted line. 
 
-![landmarks-pairs](figures/PAIR___29-041-Izd2-w35-CD31-3-les3_tif-Fused___AND___29-041-Izd2-w35-proSPC-4-les3_tif-Fused.jpg)
+![landmarks-pairs](figures/PAIR___29-041-Izd2-w35-CD31-3-les3___AND___29-041-Izd2-w35-proSPC-4-les3.jpg)
 
 ---
 
