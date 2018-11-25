@@ -1,6 +1,11 @@
 """
 Visualise landmarks on images for a particular set/scale or whole dataset
 
+The expected structure for dataset is as follows
+DATASET/<tissue>/<scale>/<image> and DATASET/<tissue>/<scale>/<csv-file>
+
+EXAMPLE
+-------
 >> python run_visualise_landmarks.py -l dataset -i dataset -o output
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
@@ -68,7 +73,7 @@ def export_visual_set_scale(d_paths):
                   if os.path.splitext(os.path.basename(p))[-1] in utils.IMAGE_EXT]
         if len(p_imgs) > 0:
             list_lnds_imgs.append((p_lnds, sorted(p_imgs)[0]))
-    # if thrre are no images or landmarks, skip it...
+    # if there are no images or landmarks, skip it...
     if len(list_lnds_imgs) == 0:
         logging.debug('no image-landmarks to show...')
         return 0
@@ -105,8 +110,8 @@ def main(params):
         'this folder "%s" cannot be used as output' % params['path_output']
 
     coll_dirs, _ = utils.collect_triple_dir([params['path_landmarks']],
-                                            params['path_dataset'],
-                                            params['path_output'])
+                                             params['path_dataset'],
+                                             params['path_output'])
     logging.info('Collected sub-folder: %i', len(coll_dirs))
 
     counts = list(utils.wrap_execute_parallel(export_visual_set_scale, coll_dirs,
