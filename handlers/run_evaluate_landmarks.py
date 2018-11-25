@@ -1,6 +1,11 @@
 """
 Validate landmarks with a consesusfor a particular annotation
 
+The expected structure of annotations is as follows
+ANNOTATIONS/<tissue>/<user_scale>/<csv-file>
+
+EXAMPLE
+-------
 >> python run_evaluate_landmarks.py -a annotations -o output
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>

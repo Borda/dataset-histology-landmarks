@@ -2,6 +2,11 @@
 According given annotations create a consensus annotations
 and scale it into particular scales used in dataset
 
+The expected structure of annotations is as follows
+ANNOTATIONS/<tissue>/<user_scale>/<csv-file>
+
+EXAMPLE
+-------
 >> python run_generate_landmarks.py -a annotations -d dataset
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
