@@ -60,6 +60,24 @@ def arg_parse_params():
     return args
 
 
+def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
+    p_lnds, p_img = lnds_img_pair1
+    name1 = os.path.splitext(os.path.basename(p_img))[0]
+    lnd1 = pd.read_csv(p_lnds)
+    img1 = utils.load_image(p_img)
+
+    p_lnds, p_img = lnds_img_pair2
+    name2 = os.path.splitext(os.path.basename(p_img))[0]
+    lnd2 = pd.read_csv(p_lnds)
+    img2 = utils.load_image(p_img)
+
+    fig = utils.figure_pair_images_landmarks((lnd1, lnd2), (img1, img2),
+                                             names=(name1, name2))
+    name = 'PAIR___%s___AND___%s.pdf' % (name1, name2)
+    fig.savefig(os.path.join(path_out, name))
+    plt.close(fig)
+
+
 def export_visual_set_scale(d_paths):
     list_lnds = sorted(glob.glob(os.path.join(d_paths['landmarks'], '*.csv')))
     list_lnds_imgs = []
@@ -86,19 +104,9 @@ def export_visual_set_scale(d_paths):
         fig.savefig(os.path.join(d_paths['output'], name_ + '.pdf'))
         plt.close(fig)
     # draw and export PAIRS of image-landmarks
-    for i, (p_lnds, p_img0) in enumerate(list_lnds_imgs):
-        name0 = os.path.splitext(os.path.basename(p_img0))[0]
-        lnd0 = pd.read_csv(p_lnds)
-        img0 = utils.load_image(p_img)
-        for p_lnds, p_img in list_lnds_imgs[i+1:]:
-            name_ = os.path.splitext(os.path.basename(p_img))[0]
-            lnd_ = pd.read_csv(p_lnds)
-            img_ = utils.load_image(p_img)
-            fig = utils.figure_pair_images_landmarks((lnd0, lnd_), (img0, img_),
-                                                     names=(name0, name_))
-            name = 'PAIR___%s___AND___%s.pdf' % (name0, name_)
-            fig.savefig(os.path.join(d_paths['output'], name))
-            plt.close(fig)
+    for p1, p2 in [(p1, p2) for i, p1 in enumerate(list_lnds_imgs)
+                   for p2 in list_lnds_imgs[i+1:]]:
+        export_visual_pairs(p1, p2, d_paths['output'])
     return len(list_lnds_imgs)
 
 

@@ -88,7 +88,7 @@ def dataset_generate_landmarks(path_annots, path_dataset,
 def scale_set_landmarks(path_set, scales=utils.SCALES):
     path_scale100 = os.path.join(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
     if not os.path.isdir(path_scale100):
-        logging.error('missing base scale 100% in "%s"', path_scale100)
+        logging.error('missing base scale 100pc in "%s"', path_scale100)
         return
     list_csv = glob.glob(os.path.join(path_scale100, '*.csv'))
     logging.debug('>> found landmarks: %i', len(list_csv))
@@ -114,8 +114,8 @@ def dataset_scale_landmarks(path_dataset, scales=utils.SCALES,
                  if os.path.isdir(p)]
     logging.info('Found sets: %i', len(list_sets))
 
-    counts = list(utils.wrap_execute_parallel(partial(scale_set_landmarks,
-                                                      scales=scales),
+    _wrap_scale = partial(scale_set_landmarks, scales=scales)
+    counts = list(utils.wrap_execute_parallel(_wrap_scale,
                                               sorted(list_sets),
                                               desc='scaling sets',
                                               nb_jobs=nb_jobs))

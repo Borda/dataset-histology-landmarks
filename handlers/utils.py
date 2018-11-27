@@ -462,12 +462,12 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
         ax.imshow(image, alpha=(1. / len(pair_images)))
 
     # draw lined between landmarks
-    for i, lnds1 in enumerate(pair_landmarks[1:]):
-        lnds0 = pair_landmarks[i]
-        outliers, _ = estimate_landmark_outliers(lnds0, lnds1)
-        for (x0, y0), (x1, y1), out in zip(lnds0, lnds1, outliers):
+    for i, lnds2 in enumerate(pair_landmarks[1:]):
+        lnds1 = pair_landmarks[i]
+        outliers, _ = estimate_landmark_outliers(lnds1, lnds2)
+        for (x1, y1), (x2, y2), out in zip(lnds1, lnds2, outliers):
             ln = '-' if out else '-.'
-            ax.plot([x0, x1], [y0, y1], ln, color=COLORS[i % len(COLORS)])
+            ax.plot([x1, x2], [y1, y2], ln, color=COLORS[i % len(COLORS)])
 
     if names is None:
         names = ['image %i' % i for i in range(len(pair_landmarks))]
