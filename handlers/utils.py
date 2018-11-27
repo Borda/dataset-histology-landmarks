@@ -14,7 +14,6 @@ import multiprocessing as mproc
 import tqdm
 import numpy as np
 import pandas as pd
-import matplotlib
 import matplotlib.pylab as plt
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
@@ -390,6 +389,7 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     :param int max_fig_size:
     :return Figure:
 
+    >>> import matplotlib
     >>> np.random.seed(0)
     >>> lnds = np.random.randint(-10, 25, (10, 2))
     >>> img = np.random.random((20, 30))
@@ -430,6 +430,7 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     :param int max_fig_size:
     :return Figure:
 
+    >>> import matplotlib
     >>> np.random.seed(0)
     >>> lnds = np.random.randint(-10, 25, (10, 2))
     >>> img = np.random.random((20, 30))
@@ -485,3 +486,26 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
                                            [lnds[1] for lnds in pair_landmarks]))
 
     return fig
+
+
+def load_image(img_path):
+    """ loading very large images
+
+    Note, for the loading we have to use matplotlib while ImageMagic nor other
+     lib (opencv, skimage, Pillow) is able to load larger images then 64k or 32k.
+
+    :param str img_path: path to the image
+    :return ndarray: image
+
+    >>> img = np.random.random((150, 200, 4))
+    >>> n_img = 'sample-image.png'
+    >>> plt.imsave(n_img, img)
+    >>> load_image(n_img).shape
+    (150, 200, 3)
+    >>> os.remove(n_img)
+    """
+    assert os.path.isfile(img_path), 'missing image: %s' % img_path
+    img = plt.imread(img_path)
+    if img.ndim == 3 and img.shape[2] == 4:
+        img = img[:, :, :3]
+    return img

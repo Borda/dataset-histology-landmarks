@@ -24,9 +24,7 @@ if os.environ.get('DISPLAY', '') == '':
     logging.warning('No display found. Using non-interactive Agg backend.')
     matplotlib.use('Agg')
 
-import numpy as np
 import pandas as pd
-from PIL import Image
 import matplotlib.pyplot as plt
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
@@ -67,8 +65,8 @@ def export_visual_set_scale(d_paths):
     list_lnds_imgs = []
     # fined relevant images to the given landmarks
     for p_lnds in list_lnds:
-        name = os.path.splitext(os.path.basename(p_lnds))[0]
-        list_name_like = glob.glob(os.path.join(d_paths['images'], name + '.*'))
+        name_ = os.path.splitext(os.path.basename(p_lnds))[0]
+        list_name_like = glob.glob(os.path.join(d_paths['images'], name_ + '.*'))
         p_imgs = [p for p in list_name_like
                   if os.path.splitext(os.path.basename(p))[-1] in utils.IMAGE_EXT]
         if len(p_imgs) > 0:
@@ -82,23 +80,24 @@ def export_visual_set_scale(d_paths):
         os.makedirs(d_paths['output'])
     # draw and export image-landmarks
     for p_lnds, p_img in list_lnds_imgs:
-        name = os.path.splitext(os.path.basename(p_img))[0]
+        name_ = os.path.splitext(os.path.basename(p_img))[0]
         fig = utils.figure_image_landmarks(pd.read_csv(p_lnds),
-                                           np.array(Image.open(p_img)))
-        fig.savefig(os.path.join(d_paths['output'], name + '.pdf'))
+                                           utils.load_image(p_img))
+        fig.savefig(os.path.join(d_paths['output'], name_ + '.pdf'))
         plt.close(fig)
     # draw and export PAIRS of image-landmarks
     for i, (p_lnds, p_img0) in enumerate(list_lnds_imgs):
         name0 = os.path.splitext(os.path.basename(p_img0))[0]
         lnd0 = pd.read_csv(p_lnds)
-        img0 = np.array(Image.open(p_img))
+        img0 = utils.load_image(p_img)
         for p_lnds, p_img in list_lnds_imgs[i+1:]:
-            name = os.path.splitext(os.path.basename(p_img))[0]
-            fig = utils.figure_pair_images_landmarks(
-                (lnd0, pd.read_csv(p_lnds)), (img0, np.array(Image.open(p_img))),
-                names=(name0, name))
-            fig.savefig(os.path.join(d_paths['output'],
-                                     'PAIR___%s___AND___%s.pdf' % (name0, name)))
+            name_ = os.path.splitext(os.path.basename(p_img))[0]
+            lnd_ = pd.read_csv(p_lnds)
+            img_ = utils.load_image(p_img)
+            fig = utils.figure_pair_images_landmarks((lnd0, lnd_), (img0, img_),
+                                                     names=(name0, name_))
+            name = 'PAIR___%s___AND___%s.pdf' % (name0, name_)
+            fig.savefig(os.path.join(d_paths['output'], name))
             plt.close(fig)
     return len(list_lnds_imgs)
 
