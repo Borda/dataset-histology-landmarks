@@ -1,8 +1,8 @@
 """
-Validate landmarks with a consesusfor a particular annotation
+Validate landmarks with a consensus for a particular annotation
 
 The expected structure of annotations is as follows
-ANNOTATIONS/<tissue>/<user_scale>/<csv-file>
+ANNOTATIONS/<tissue>/<user>_scale-<number>pc/<csv-file>
 
 EXAMPLE
 -------

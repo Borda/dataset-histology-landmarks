@@ -3,7 +3,9 @@ According given annotations create a consensus annotations
 and scale it into particular scales used in dataset
 
 The expected structure of annotations is as follows
-ANNOTATIONS/<tissue>/<user_scale>/<csv-file>
+ANNOTATIONS/<tissue>/<user>_scale-<number>pc/<csv-file>
+The expected structure of dataset is
+DATASET/<tissue>/scale-<number>pc/<image-file>
 
 EXAMPLE
 -------
@@ -57,7 +59,7 @@ def arg_parse_params():
 
 
 def generate_consensus_landmarks(path_set, path_dataset):
-    path_annots = [p for p in glob.glob(os.path.join(path_set, '*'))
+    path_annots = [p for p in glob.glob(os.path.join(path_set, '*_scale-*pc'))
                    if os.path.isdir(p)]
     logging.debug('>> found annotations: %i', len(path_annots))
 
@@ -77,15 +79,15 @@ def dataset_generate_landmarks(path_annots, path_dataset,
                  if os.path.isdir(p)]
     logging.info('Found sets: %i', len(list_sets))
 
-    counts = list(utils.wrap_execute_parallel(partial(generate_consensus_landmarks,
-                                                      path_dataset=path_dataset),
-                                              sorted(list_sets),
-                                              desc='consensus lnds',
+    _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
+    counts = list(utils.wrap_execute_parallel(_wrap_lnds, sorted(list_sets),
+                                              desc='consensus landmarks',
                                               nb_jobs=nb_jobs))
     return counts
 
 
 def scale_set_landmarks(path_set, scales=utils.SCALES):
+    logging.debug('> processing: %s', path_set)
     path_scale100 = os.path.join(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
     if not os.path.isdir(path_scale100):
         logging.error('missing base scale 100pc in "%s"', path_scale100)
@@ -98,8 +100,8 @@ def scale_set_landmarks(path_set, scales=utils.SCALES):
         scales.remove(100)  # drop the base scale
     set_scales = {}
     for sc in scales:
-        path_scale = utils.create_folder(path_set,
-                                         utils.TEMPLATE_FOLDER_SCALE % sc)
+        folder_name = utils.TEMPLATE_FOLDER_SCALE % sc
+        path_scale = utils.create_folder(path_set, folder_name)
         for name in dict_lnds:
             df_scale = dict_lnds[name] * (sc / 100.)
             df_scale.to_csv(os.path.join(path_scale, name))

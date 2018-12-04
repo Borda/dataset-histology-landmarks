@@ -2,7 +2,8 @@
 Visualise landmarks on images for a particular set/scale or whole dataset
 
 The expected structure for dataset is as follows
-DATASET/<tissue>/<scale>/<image> and DATASET/<tissue>/<scale>/<csv-file>
+ * DATASET/<tissue>/<scale>/<image>
+ * DATASET/<tissue>/<scale>/<csv-file>
 
 EXAMPLE
 -------

@@ -20,8 +20,8 @@ NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
 SCALES = [5, 10, 25, 50, 100]
 # template nema for scale folder
 TEMPLATE_FOLDER_SCALE = 'scale-%dpc'
-# regular expresion patters for determining scale and user
-REEXP_FOLDER_ANNOT = 'user-(.\S+)_scale-(\d+)pc'
+# regular expression patters for determining scale and user
+REEXP_FOLDER_ANNOT = '(.\S+)_scale-(\d+)pc'
 REEXP_FOLDER_SCALE = '\S*scale-(\d+)pc'
 # default figure size for visualisations
 FIGURE_SIZE = 18
@@ -114,6 +114,7 @@ def parse_path_user_scale(path):
     if obj is None:
         return '', np.nan
     user, scale = obj.groups()
+    user = user.replace('user-', '')
     scale = int(scale)
     return user, scale
 
@@ -282,7 +283,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=5):
 
 
 def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
-    """ compute statistic on errors between reference and sensed landamrks
+    """ compute statistic on errors between reference and sensed landmarks
 
     :param ndarray landmarks_ref:
     :param ndarray landmarks_in:
@@ -332,16 +333,28 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
 
 
 def create_consensus_landmarks(path_annots, equal_size=True):
-    """ create a consesus on set of landmarks
+    """ create a consensus on set of landmarks
 
     :param [str] path_annots:
     :param bool equal_size:
     :return {str: DF}:
+
+    >>> folder = './me-KJ_25'
+    >>> os.mkdir(folder)
+    >>> create_consensus_landmarks([folder])
+    ({}, {})
+    >>> import shutil
+    >>> shutil.rmtree(folder)
     """
     dict_list_lnds = {}
-    # find all landmars for particular image
+    # find all landmark for particular image
     for p_annot in path_annots:
         _, scale = parse_path_user_scale(p_annot)
+        if np.isnan(scale):
+            logging.warning('wrong set annotation scale, '
+                            'required `<user>_scale-<number>pc` but got %s',
+                            os.path.basename(p_annot))
+            continue
         list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
         for p_csv in list_csv:
             name = os.path.basename(p_csv)
