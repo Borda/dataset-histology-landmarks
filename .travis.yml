@@ -12,6 +12,7 @@ sudo: false
 env:
   global:
     - CC_TEST_REPORTER_ID=53c61165ba2bd222535555616b6eb9fa540787f53e5f93be710c9a3c183eb868
+    - CODACY_PROJECT_TOKEN=f15c407623e8407e88c9ca5e50470562
 
 python:
   - 2.7
@@ -50,5 +51,6 @@ script:
 after_success:
   - codecov  # public repository on Travis CI
   - coverage xml
+  - python-codacy-coverage -r coverage.xml
   - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
   - coverage report

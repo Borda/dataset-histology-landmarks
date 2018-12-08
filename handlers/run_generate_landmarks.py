@@ -95,6 +95,7 @@ def scale_set_landmarks(path_set, scales=SCALES):
     logging.debug('>> found landmarks: %i', len(list_csv))
     dict_lnds = {os.path.basename(p): pd.read_csv(p, index_col=0)
                  for p in list_csv}
+    scales = list(scales)
     if 100 in scales:
         scales.remove(100)  # drop the base scale
     set_scales = {}

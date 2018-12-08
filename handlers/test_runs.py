@@ -6,18 +6,17 @@ Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 
 import os
 import sys
-import multiprocessing as mproc
+import logging
 
 import numpy as np
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
-
 import handlers.utilities as utils
 import handlers.run_evaluate_landmarks as r_eval
 import handlers.run_generate_landmarks as r_generate
 import handlers.run_visualise_landmarks as r_visual
 
-NB_THREADS = max(1, int(mproc.cpu_count() * 0.7))
+logging.basicConfig(level=logging.DEBUG)
 PATH_ANNOTATIONS = utils.update_path('annotations')
 assert os.path.isdir(PATH_ANNOTATIONS), 'missing annot: %s' % PATH_ANNOTATIONS
 PATH_DATASET = utils.update_path('dataset')
@@ -51,6 +50,7 @@ def test_02_visualise_landmarks():
     params = {'path_landmarks': PATH_DATASET,
               'path_dataset': PATH_DATASET,
               'path_output': PATH_OUTPUT,
+              'scales': [5],
               'nb_jobs': 1}  # coverage is not able to track in parallelism
     counts = r_visual.main(**params)
     assert len([n for n in counts if n > 0]) > 0, 'nothing visualised'

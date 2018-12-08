@@ -17,7 +17,7 @@ import pandas as pd
 import matplotlib.pylab as plt
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
-SCALES = [5, 10, 25, 50, 100]
+SCALES = (5, 10, 25, 50, 100)
 # template nema for scale folder
 TEMPLATE_FOLDER_SCALE = r'scale-%dpc'
 # regular expression patters for determining scale and user
@@ -26,7 +26,7 @@ REEXP_FOLDER_SCALE = r'\S*scale-(\d+)pc'
 # default figure size for visualisations
 FIGURE_SIZE = 18
 # expected image extensions
-IMAGE_EXT = ['.png', '.jpg', '.jpeg']
+IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
 
 
@@ -63,9 +63,9 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
     :param int nb_jobs: number og jobs running in parallel
     :param str desc: description for the bar
 
-    >>> [o for o in wrap_execute_parallel(lambda pts: pts ** 2, range(5), nb_jobs=1)]
+    >>> list(wrap_execute_parallel(lambda pts: pts ** 2, range(5), nb_jobs=1))
     [0, 1, 4, 9, 16]
-    >>> [o for o in wrap_execute_parallel(sum, [[0, 1]] * 5, nb_jobs=2)]
+    >>> list(wrap_execute_parallel(sum, [[0, 1]] * 5, nb_jobs=2))
     [1, 1, 1, 1, 1]
     """
     iterate_vals = list(iterate_vals)
@@ -259,7 +259,7 @@ def estimate_affine_transform(points_0, points_1):
     y = pad(points_1[:nb])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix, res, rank, s = np.linalg.lstsq(x, y, rcond=-1)
+    matrix, res, _, _ = np.linalg.lstsq(x, y, rcond=-1)
 
     transform = lambda pts: unpad(np.dot(pad(pts), matrix))
     points_0_warp = transform(points_0)
@@ -590,6 +590,8 @@ def find_image_full_size(path_dataset, name_set, name_image):
     (13220, 17840)
     >>> find_image_full_size(update_path('dataset'), 'lesions_1', '29-...-He')
     """
+    if path_dataset is None:
+        return None
     path_set = os.path.join(path_dataset, name_set)
     if not os.path.isdir(path_set):
         return None
