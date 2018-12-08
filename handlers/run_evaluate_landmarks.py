@@ -22,12 +22,11 @@ from functools import partial
 import pandas as pd
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
-from handlers.utilities import TEMPLATE_FOLDER_SCALE, NB_THREADS
-from handlers.utilities import (update_path, load_image, find_images,
-                                collect_triple_dir, wrap_execute_parallel,
-                                create_consensus_landmarks,
-                                compute_landmarks_statistic,
-                                parse_path_scale, parse_path_user_scale)
+from handlers.utilities import NB_THREADS
+from handlers.utilities import (
+    update_path, find_image_full_size, collect_triple_dir, wrap_execute_parallel,
+    create_consensus_landmarks, compute_landmarks_statistic, parse_path_user_scale
+)
 
 
 def arg_parse_params():
@@ -65,18 +64,11 @@ def compute_statistic(path_user, path_refs, path_dataset=None):
 
     list_stats = []
     set_name, user_name = path_user.split(os.sep)[-2:]
-    scale = parse_path_scale(path_user)
     for csv_name in lnds_user:
         if csv_name not in lnds_refs:
             continue
-        im_size = None  # default - without images
-        if path_dataset is not None:
-            # TODO: load only the smallest image scale and multiply by ...
-            path_img_dir = os.path.join(path_dataset, set_name,
-                                        TEMPLATE_FOLDER_SCALE % scale)
-            if os.path.isdir(path_img_dir):
-                path_imgs = find_images(path_img_dir, os.path.splitext(csv_name)[0])
-                im_size = load_image(path_imgs[0]).shape[:2] if path_imgs else None
+        im_size = find_image_full_size(path_dataset, set_name,
+                                       os.path.splitext(csv_name)[0])
         d_stat = compute_landmarks_statistic(lnds_refs[csv_name],
                                              lnds_user[csv_name],
                                              use_affine=False, im_size=im_size)
@@ -88,11 +80,11 @@ def compute_statistic(path_user, path_refs, path_dataset=None):
 
 
 def evaluate_user(user_name, path_annots, path_out, path_dataset=None):
-    list_sets = sorted([p for p in glob.glob(os.path.join(path_annots, '*'))
-                        if os.path.isdir(p)])
-    list_stats = []
-    for p_set in list_sets:
-        paths = sorted([p for p in glob.glob(os.path.join(p_set, '*'))
+    tissue_sets = sorted([p for p in glob.glob(os.path.join(path_annots, '*'))
+                          if os.path.isdir(p)])
+    stats = []
+    for p_set in tissue_sets:
+        paths = sorted([p for p in glob.glob(os.path.join(p_set, '*_scale-*pc'))
                         if os.path.isdir(p)])
         user_names = [parse_path_user_scale(p)[0].lower()
                       for p in paths]
@@ -101,9 +93,12 @@ def evaluate_user(user_name, path_annots, path_out, path_dataset=None):
         paths_lnds_refs = [p for p, u in zip(paths, user_names)
                            if u != user_name.lower()]
         for path_user in paths_lnds_user:
-            list_stats += compute_statistic(path_user, paths_lnds_refs,
-                                            path_dataset)
-    df_stats = pd.DataFrame(list_stats)
+            stats += compute_statistic(path_user, paths_lnds_refs, path_dataset)
+    if not stats:
+        logging.warning('no statistic collected')
+        return 0
+
+    df_stats = pd.DataFrame(stats)
     df_stats.set_index(['name_image_set', 'name_user', 'landmarks'],
                        inplace=True)
     df_stats.to_csv(os.path.join(path_out, 'STATISTIC_%s.csv' % user_name))
@@ -113,17 +108,20 @@ def evaluate_user(user_name, path_annots, path_out, path_dataset=None):
 
 
 def main(path_annots, path_dataset, path_output, nb_jobs=NB_THREADS):
-    coll_dirs, _ = collect_triple_dir([path_annots], '', '')
+    coll_dirs, _ = collect_triple_dir([path_annots], '', '', with_user=True)
     logging.info('Collected sub-folder: %i', len(coll_dirs))
     user_names = sorted({parse_path_user_scale(d['landmarks'])[0]
                          for d in coll_dirs})
     logging.info('Found users: %s', repr(user_names))
+    if len(user_names) < 2:
+        logging.info('Not enough user annotations.')
 
     _evaluate_user = partial(evaluate_user, path_annots=path_annots,
                              path_dataset=path_dataset, path_out=path_output)
     counts = list(wrap_execute_parallel(
         _evaluate_user, user_names, nb_jobs=nb_jobs,
         desc='evaluate @%i-threads' % nb_jobs))
+    logging.info('Created %i statistics.', sum(counts))
     return counts
 
 

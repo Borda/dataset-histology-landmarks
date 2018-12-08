@@ -19,10 +19,10 @@ import matplotlib.pylab as plt
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
 SCALES = [5, 10, 25, 50, 100]
 # template nema for scale folder
-TEMPLATE_FOLDER_SCALE = 'scale-%dpc'
+TEMPLATE_FOLDER_SCALE = r'scale-%dpc'
 # regular expression patters for determining scale and user
-REEXP_FOLDER_ANNOT = '(.\S+)_scale-(\d+)pc'
-REEXP_FOLDER_SCALE = '\S*scale-(\d+)pc'
+REEXP_FOLDER_ANNOT = r'(.\S+)_scale-(\d+)pc'
+REEXP_FOLDER_SCALE = r'\S*scale-(\d+)pc'
 # default figure size for visualisations
 FIGURE_SIZE = 18
 # expected image extensions
@@ -104,6 +104,8 @@ def parse_path_user_scale(path):
 
     >>> parse_path_user_scale('user-KO_scale-.5pc')
     ('', nan)
+    >>> parse_path_user_scale('scale-10pc')
+    ('', nan)
     >>> parse_path_user_scale('user-JB_scale-50pc')
     ('JB', 50)
     >>> parse_path_user_scale('sample/path/user-ck6_scale-25pc')
@@ -168,7 +170,8 @@ def landmarks_consensus(list_landmarks):
     return df
 
 
-def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None):
+def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
+                       scales=None, with_user=False):
     """ collect all subdir up to level of scales with user annotations
 
     expected annotation structure is <tissue>/<user>_scale-<number>pc/<csv-file>
@@ -178,6 +181,8 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None):
     :param str path_dataset: path to the dataset with images
     :param str path_out: path for exporting statistic
     :param [{}] coll_dirs: list of already exiting collections
+    :param [int] scales: list of allowed scales
+    :param bool with_user: whether required iser info (as annotation)
     :return [{}]: list of already collections
 
     >>> coll_dirs, d = collect_triple_dir([update_path('annotations')],
@@ -197,12 +202,18 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None):
         coll_dirs = []
     for path_lnds in paths_landmarks:
         set_name, scale_name = path_lnds.split(os.sep)[-2:]
-        scale = parse_path_scale(scale_name)
+        scale = parse_path_user_scale(scale_name)[1] \
+            if with_user else parse_path_scale(scale_name)
+        # if a scale was not recognised in the last folder name
         if np.isnan(scale):
             sub_dirs = sorted([p for p in glob.glob(os.path.join(path_lnds, '*'))
                                if os.path.isdir(p)])
             coll_dirs, sub_dirs = collect_triple_dir(sub_dirs, path_dataset,
-                                                     path_out, coll_dirs)
+                                                     path_out, coll_dirs,
+                                                     scales, with_user)
+            continue
+        # skip particular scale if it is not among chosen
+        if scales is not None and scale not in scales:
             continue
         coll_dirs.append({
             'landmarks': path_lnds,
@@ -248,7 +259,7 @@ def estimate_affine_transform(points_0, points_1):
     y = pad(points_1[:nb])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix, res, rank, s = np.linalg.lstsq(x, y)
+    matrix, res, rank, s = np.linalg.lstsq(x, y, rcond=-1)
 
     transform = lambda pts: unpad(np.dot(pad(pts), matrix))
     points_0_warp = transform(points_0)
@@ -326,8 +337,7 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
         _, err = estimate_landmark_outliers(landmarks_ref, landmarks_in)
     else:
         nb = min(len(landmarks_ref), len(landmarks_in))
-        err = np.sqrt(np.sum((landmarks_ref[:nb] - landmarks_in[:nb]) ** 2,
-                             axis=1))
+        err = np.sqrt(np.sum((landmarks_ref[:nb] - landmarks_in[:nb]) ** 2, axis=1))
     df_err = pd.DataFrame(err)
     df_stat = df_err.describe().T[['count', 'mean', 'std', 'min', 'max']]
     df_stat.columns = ['TRE %s' % col for col in df_stat.columns]
@@ -355,10 +365,10 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
 
 
 def create_consensus_landmarks(path_annots, equal_size=True):
-    """ create a consensus on set of landmarks
+    """ create a consensus on set of landmarks and return normalised to 100%
 
-    :param [str] path_annots:
-    :param bool equal_size:
+    :param [str] path_annots: path to CSV landmarks
+    :param bool equal_size: use only max number of common points, 56 & 65 -> 56
     :return {str: DF}:
 
     >>> folder = './me-KJ_25'
@@ -546,6 +556,10 @@ def load_image(img_path):
     return img
 
 
+def get_file_ext(path_file):
+    return os.path.splitext(os.path.basename(path_file))[-1]
+
+
 def find_images(path_folder, name_file):
     """ find find images in particular flder with given file name
 
@@ -558,7 +572,33 @@ def find_images(path_folder, name_file):
     ['...dataset/lesions_3/scale-5pc/29-041-Izd2-w35-Cc10-5-les3.jpg']
     """
     assert os.path.isdir(path_folder), 'missing folder: %s' % path_folder
-    paths_img = sorted(glob.glob(os.path.join(path_folder, name_file + '.*')))
-    paths_img = [p for p in paths_img
-                 if os.path.splitext(os.path.basename(p))[-1] in IMAGE_EXT]
-    return paths_img
+    paths_img = [p for p in glob.glob(os.path.join(path_folder, name_file + '.*'))
+                 if get_file_ext(p) in IMAGE_EXT]
+    return sorted(paths_img)
+
+
+def find_image_full_size(path_dataset, name_set, name_image):
+    """ find the smallest image of given tissue and stain and return images size
+
+    :param str path_dataset: path to the image dataset
+    :param str name_set: name of particular tissue
+    :param str name_image: image name - stain
+    :return (int, int):
+
+    >>> find_image_full_size(update_path('dataset'), 'lesions_3',
+    ...                      '29-041-Izd2-w35-He-les3')
+    (13220, 17840)
+    >>> find_image_full_size(update_path('dataset'), 'lesions_1', '29-...-He')
+    """
+    path_set = os.path.join(path_dataset, name_set)
+    if not os.path.isdir(path_set):
+        return None
+    paths_img = glob.glob(os.path.join(path_set, 'scale-*pc', name_image + '.*'))
+    scales_paths_img = [(parse_path_scale(os.path.dirname(p)), p)
+                        for p in paths_img if get_file_ext(p) in IMAGE_EXT]
+    if not scales_paths_img:
+        return None
+    scale, path_img = sorted(scales_paths_img)[0]
+    im_size = load_image(path_img).shape[:2]
+    im_size_full = np.array(im_size) * (100. / scale)
+    return tuple(im_size_full.astype(int))

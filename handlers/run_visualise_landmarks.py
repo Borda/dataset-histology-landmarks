@@ -28,11 +28,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
-from handlers.utilities import NB_THREADS
-from handlers.utilities import (update_path, load_image, find_images,
-                                collect_triple_dir, wrap_execute_parallel,
-                                figure_pair_images_landmarks,
-                                figure_image_landmarks)
+from handlers.utilities import NB_THREADS, SCALES
+from handlers.utilities import (
+    update_path, load_image, find_images, collect_triple_dir, wrap_execute_parallel,
+    figure_pair_images_landmarks, figure_image_landmarks
+)
 
 
 def arg_parse_params():
@@ -51,8 +51,8 @@ def arg_parse_params():
     parser.add_argument('-o', '--path_output', type=str, required=False,
                         help='path to the output directory - visualisation',
                         default='output')
-    # parser.add_argument('--scales', type=int, required=False, nargs='*',
-    #                     help='select scales for visualization', default=SCALES)
+    parser.add_argument('--scales', type=int, required=False, nargs='*',
+                        help='select scales for visualization', default=SCALES)
     parser.add_argument('--nb_jobs', type=int, required=False, default=NB_THREADS,
                         help='number of processes in parallel')
     args = vars(parser.parse_args())
@@ -110,14 +110,17 @@ def export_visual_set_scale(d_paths):
     return len(list_lnds_imgs)
 
 
-def main(path_landmarks, path_dataset, path_output, nb_jobs=NB_THREADS):
+def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
     assert path_landmarks != path_output, \
         'this folder "%s" cannot be used as output' % path_output
     assert path_dataset != path_output, \
         'this folder "%s" cannot be used as output' % path_output
 
-    coll_dirs, _ = collect_triple_dir([path_landmarks], path_dataset, path_output)
-    # TODO: filter just for particular scales
+    coll_dirs, _ = collect_triple_dir([path_landmarks], path_dataset,
+                                      path_output, scales=scales)
+    if not coll_dirs:
+        logging.info('No sub-folders collected.')
+        return 0
     logging.info('Collected sub-folder: %i', len(coll_dirs))
 
     counts = list(wrap_execute_parallel(

@@ -26,9 +26,9 @@ import pandas as pd
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
-from handlers.utilities import (update_path, create_folder,
-                                wrap_execute_parallel,
-                                create_consensus_landmarks)
+from handlers.utilities import (
+    update_path, create_folder, wrap_execute_parallel, create_consensus_landmarks
+)
 
 
 def arg_parse_params():
