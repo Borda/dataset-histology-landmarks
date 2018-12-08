@@ -67,16 +67,16 @@ def compute_statistic(path_user, path_refs, path_dataset=None):
     set_name, user_name = path_user.split(os.sep)[-2:]
     scale = parse_path_scale(path_user)
     for csv_name in lnds_user:
-        if not csv_name in lnds_refs:
+        if csv_name not in lnds_refs:
             continue
+        im_size = None  # default - without images
         if path_dataset is not None:
             # TODO: load only the smallest image scale and multiply by ...
             path_img_dir = os.path.join(path_dataset, set_name,
                                         TEMPLATE_FOLDER_SCALE % scale)
-            path_imgs = find_images(path_img_dir, os.path.splitext(csv_name)[0])
-            im_size = load_image(path_imgs[0]).shape[:2] if path_imgs else None
-        else:
-            im_size = None
+            if os.path.isdir(path_img_dir):
+                path_imgs = find_images(path_img_dir, os.path.splitext(csv_name)[0])
+                im_size = load_image(path_imgs[0]).shape[:2] if path_imgs else None
         d_stat = compute_landmarks_statistic(lnds_refs[csv_name],
                                              lnds_user[csv_name],
                                              use_affine=False, im_size=im_size)

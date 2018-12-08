@@ -105,7 +105,7 @@ def export_visual_set_scale(d_paths):
         plt.close(fig)
     # draw and export PAIRS of image-landmarks
     for p1, p2 in [(p1, p2) for i, p1 in enumerate(list_lnds_imgs)
-                   for p2 in list_lnds_imgs[i+1:]]:
+                   for p2 in list_lnds_imgs[i + 1:]]:
         export_visual_pairs(p1, p2, d_paths['output'])
     return len(list_lnds_imgs)
 

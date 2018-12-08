@@ -28,7 +28,7 @@ before_install:
 
 install:
   - pip install -r requirements.txt
-  - pip install nose coverage codecov pytest codacy-coverage
+  - pip install coverage pytest pytest-cov codecov codacy-coverage flake8
   # code coverage tool
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
   - chmod +x ./cc-test-reporter
@@ -39,8 +39,9 @@ before_script:
   - ./cc-test-reporter before-build
 
 script:
-#  - pytest -v --doctest-modules
-  - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=handlers  # --ignore-files=*.ijm
+#  - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=handlers  # --ignore-files=*.ijm
+  - coverage run --source handlers -m py.test handlers -v --doctest-modules --junitxml=pytest_junit.xml
+  - flake8 . --ignore=E402,W605,E731 --max-line-length=100
 
   - python handlers/run_evaluate_landmarks.py -a ./annotations -o ./output
   - python handlers/run_generate_landmarks.py -a ./annotations -d ./dataset --scales 5

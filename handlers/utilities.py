@@ -300,19 +300,19 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
     >>> lnds1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.],
     ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, use_affine=True)
-    >>> [(k, np.round(d_stat[k])) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE
+    >>> [(k, d_stat[k]) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     [('TRE count', 8.0),
-     ('TRE max', 69.0),
-     ('TRE mean', 19.0),
-     ('TRE median', 14.0),
-     ('TRE min', 1.0),
-     ('TRE std', 21.0),
-     ('image diagonal', 86.0),
-     ('image size', array([65., 56.])),
-     ('rTRE max', 1.0),
-     ('rTRE mean', 0.0),
-     ('rTRE min', 0.0),
-     ('rTRE std', 0.0)]
+     ('TRE max', 68.9...),
+     ('TRE mean', 18.6...),
+     ('TRE median', 13.5...),
+     ('TRE min', 1.0...),
+     ('TRE std', 21.4...),
+     ('image diagonal (estimated)', 85.7...),
+     ('image size (estimated)', (65, 56)),
+     ('rTRE max', 0.8...),
+     ('rTRE mean', 0.2...),
+     ('rTRE min', 0.01...),
+     ('rTRE std', 0.25...)]
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, im_size=(150, 175))
     >>> d_stat['TRE mean']  # doctest: +ELLIPSIS
     69.0189...
@@ -336,13 +336,14 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
 
     if im_size is None:
         landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
+        # assuming that the offset is symmetric on all sides
         im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
         logging.debug('estimated image size from landmarks: %s', repr(im_size))
         tp = 'estimated'
     else:
         tp = 'true'
 
-    im_size = np.array(im_size[:2])
+    im_size = np.array(im_size[:2], dtype=int)
     im_diag = np.sqrt(np.sum(im_size ** 2))
     d_stat['image size (%s)' % tp] = tuple(im_size.tolist())
     d_stat['image diagonal (%s)' % tp] = np.sqrt(np.sum(im_size ** 2))
@@ -561,4 +562,3 @@ def find_images(path_folder, name_file):
     paths_img = [p for p in paths_img
                  if os.path.splitext(os.path.basename(p))[-1] in IMAGE_EXT]
     return paths_img
-
