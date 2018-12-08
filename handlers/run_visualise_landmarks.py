@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, SCALES
 from handlers.utilities import (
-    update_path, load_image, find_images, collect_triple_dir, wrap_execute_parallel,
+    assert_paths, load_image, find_images, collect_triple_dir, wrap_execute_parallel,
     figure_pair_images_landmarks, figure_image_landmarks
 )
 
@@ -57,9 +57,7 @@ def arg_parse_params():
                         help='number of processes in parallel')
     args = vars(parser.parse_args())
     logging.info('ARG PARAMETERS: \n %s', repr(args))
-    for k in (k for k in args if 'path' in k):
-        args[k] = update_path(args[k])
-        assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
+    args = assert_paths(args)
     return args
 
 

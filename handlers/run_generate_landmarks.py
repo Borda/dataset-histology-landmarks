@@ -27,7 +27,8 @@ import pandas as pd
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
 from handlers.utilities import (
-    update_path, create_folder, wrap_execute_parallel, create_consensus_landmarks
+    assert_paths, create_folder, wrap_execute_parallel, list_sub_folders,
+    create_consensus_landmarks
 )
 
 
@@ -51,15 +52,12 @@ def arg_parse_params():
                         default=NB_THREADS)
     args = vars(parser.parse_args())
     logging.info('ARG PARAMETERS: \n %s', repr(args))
-    for k in (k for k in args if 'path' in k):
-        args[k] = update_path(args[k])
-        assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
+    args = assert_paths(args)
     return args
 
 
 def generate_consensus_landmarks(path_set, path_dataset):
-    path_annots = [p for p in glob.glob(os.path.join(path_set, '*_scale-*pc'))
-                   if os.path.isdir(p)]
+    path_annots = list_sub_folders(path_set, '*_scale-*pc')
     logging.debug('>> found annotations: %i', len(path_annots))
 
     dict_lnds, dict_lens = create_consensus_landmarks(path_annots)
@@ -74,8 +72,7 @@ def generate_consensus_landmarks(path_set, path_dataset):
 
 def dataset_generate_landmarks(path_annots, path_dataset,
                                nb_jobs=NB_THREADS):
-    list_sets = [p for p in glob.glob(os.path.join(path_annots, '*'))
-                 if os.path.isdir(p)]
+    list_sets = list_sub_folders(path_annots)
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
@@ -111,8 +108,7 @@ def scale_set_landmarks(path_set, scales=SCALES):
 
 
 def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
-    list_sets = [p for p in glob.glob(os.path.join(path_dataset, '*'))
-                 if os.path.isdir(p)]
+    list_sets = list_sub_folders(path_dataset)
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_scale = partial(scale_set_landmarks, scales=scales)

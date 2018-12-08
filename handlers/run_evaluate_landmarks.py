@@ -14,7 +14,6 @@ Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 
 import os
 import sys
-import glob
 import logging
 import argparse
 from functools import partial
@@ -24,8 +23,9 @@ import pandas as pd
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS
 from handlers.utilities import (
-    update_path, find_image_full_size, collect_triple_dir, wrap_execute_parallel,
-    create_consensus_landmarks, compute_landmarks_statistic, parse_path_user_scale
+    assert_paths, find_image_full_size, collect_triple_dir, list_sub_folders,
+    wrap_execute_parallel, create_consensus_landmarks, compute_landmarks_statistic,
+    parse_path_user_scale
 )
 
 
@@ -52,9 +52,7 @@ def arg_parse_params():
                         default=NB_THREADS)
     args = vars(parser.parse_args())
     logging.info('ARG PARAMETERS: \n %s', repr(args))
-    for k in (k for k in args if 'path' in k):
-        args[k] = update_path(args[k])
-        assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
+    args = assert_paths(args)
     return args
 
 
@@ -80,12 +78,10 @@ def compute_statistic(path_user, path_refs, path_dataset=None):
 
 
 def evaluate_user(user_name, path_annots, path_out, path_dataset=None):
-    tissue_sets = sorted([p for p in glob.glob(os.path.join(path_annots, '*'))
-                          if os.path.isdir(p)])
+    tissue_sets = list_sub_folders(path_annots)
     stats = []
     for p_set in tissue_sets:
-        paths = sorted([p for p in glob.glob(os.path.join(p_set, '*_scale-*pc'))
-                        if os.path.isdir(p)])
+        paths = list_sub_folders(p_set, '*_scale-*pc')
         user_names = [parse_path_user_scale(p)[0].lower()
                       for p in paths]
         paths_lnds_user = [p for p, u in zip(paths, user_names)

@@ -54,6 +54,31 @@ def update_path(path, max_depth=5):
     return path
 
 
+def assert_paths(args):
+    """ check missing paths
+
+    :param {} args: dictionary of arguments
+    :return {}: dictionary of updated arguments
+
+    >>> assert_paths({'path_': 'missing'})  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    AssertionError: missing: (path_) "missing"
+    >>> assert_paths({'abc': 123})
+    {'abc': 123}
+    """
+    for k in (k for k in args if 'path' in k):
+        args[k] = update_path(args[k])
+        assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
+    return args
+
+
+def list_sub_folders(path_folder, name='*'):
+    sub_dirs = sorted([p for p in glob.glob(os.path.join(path_folder, name))
+                       if os.path.isdir(p)])
+    return sub_dirs
+
+
 def wrap_execute_parallel(wrap_func, iterate_vals,
                           nb_jobs=NB_THREADS, desc=''):
     """ wrapper for execution parallel of single thread as for...
@@ -206,8 +231,7 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
             if with_user else parse_path_scale(scale_name)
         # if a scale was not recognised in the last folder name
         if np.isnan(scale):
-            sub_dirs = sorted([p for p in glob.glob(os.path.join(path_lnds, '*'))
-                               if os.path.isdir(p)])
+            sub_dirs = list_sub_folders(path_lnds)
             coll_dirs, sub_dirs = collect_triple_dir(sub_dirs, path_dataset,
                                                      path_out, coll_dirs,
                                                      scales, with_user)
@@ -259,7 +283,7 @@ def estimate_affine_transform(points_0, points_1):
     y = pad(points_1[:nb])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix, res, _, _ = np.linalg.lstsq(x, y, rcond=-1)
+    matrix, _, _, _ = np.linalg.lstsq(x, y, rcond=-1)
 
     transform = lambda pts: unpad(np.dot(pad(pts), matrix))
     points_0_warp = transform(points_0)
