@@ -168,14 +168,17 @@ def landmarks_consensus(list_landmarks):
     return df
 
 
-def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
-    """ collect all subdir up to level of scales
+def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None):
+    """ collect all subdir up to level of scales with user annotations
 
-    :param list_path_lnds:
-    :param path_dataset:
-    :param path_out:
-    :param coll_dirs:
-    :return:
+    expected annotation structure is <tissue>/<user>_scale-<number>pc/<csv-file>
+    expected dataset structure is <tissue>/scale-<number>pc/<image>
+
+    :param [str] paths_landmarks: path to landmarks / annotations
+    :param str path_dataset: path to the dataset with images
+    :param str path_out: path for exporting statistic
+    :param [{}] coll_dirs: list of already exiting collections
+    :return [{}]: list of already collections
 
     >>> coll_dirs, d = collect_triple_dir([update_path('annotations')],
     ...                                   update_path('dataset'), 'output')
@@ -192,7 +195,7 @@ def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
     """
     if coll_dirs is None:
         coll_dirs = []
-    for path_lnds in list_path_lnds:
+    for path_lnds in paths_landmarks:
         set_name, scale_name = path_lnds.split(os.sep)[-2:]
         scale = parse_path_scale(scale_name)
         if np.isnan(scale):
@@ -282,12 +285,14 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=5):
     return out, err
 
 
-def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
+def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
+                                im_size=None):
     """ compute statistic on errors between reference and sensed landmarks
 
     :param ndarray landmarks_ref:
     :param ndarray landmarks_in:
     :param bool use_affine:
+    :param im_size:
     :return:
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
@@ -296,16 +301,20 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
     ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, use_affine=True)
     >>> [(k, np.round(d_stat[k])) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE
-    [('count', 8.0),
-     ('image_diagonal', 86.0),
-     ('image_size', array([ 65.,  56.])),
-     ('max', 69.0),
-     ('mean', 19.0),
-     ('median', 14.0),
-     ('min', 1.0),
-     ('std', 21.0)]
-    >>> d_stat = compute_landmarks_statistic(lnds0, lnds1)
-    >>> d_stat['mean']  # doctest: +ELLIPSIS
+    [('TRE count', 8.0),
+     ('TRE max', 69.0),
+     ('TRE mean', 19.0),
+     ('TRE median', 14.0),
+     ('TRE min', 1.0),
+     ('TRE std', 21.0),
+     ('image diagonal', 86.0),
+     ('image size', array([65., 56.])),
+     ('rTRE max', 1.0),
+     ('rTRE mean', 0.0),
+     ('rTRE min', 0.0),
+     ('rTRE std', 0.0)]
+    >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, im_size=(150, 175))
+    >>> d_stat['TRE mean']  # doctest: +ELLIPSIS
     69.0189...
     """
     if isinstance(landmarks_ref, pd.DataFrame):
@@ -321,13 +330,25 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
                              axis=1))
     df_err = pd.DataFrame(err)
     df_stat = df_err.describe().T[['count', 'mean', 'std', 'min', 'max']]
+    df_stat.columns = ['TRE %s' % col for col in df_stat.columns]
     d_stat = dict(df_stat.iloc[0])
-    d_stat['median'] = np.median(err)
+    d_stat['TRE median'] = np.median(err)
 
-    landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
-    im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
-    d_stat['image_size'] = im_size.tolist()
-    d_stat['image_diagonal'] = np.sqrt(np.sum(im_size ** 2))
+    if im_size is None:
+        landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
+        im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
+        logging.debug('estimated image size from landmarks: %s', repr(im_size))
+        tp = 'estimated'
+    else:
+        tp = 'true'
+
+    im_size = np.array(im_size[:2])
+    im_diag = np.sqrt(np.sum(im_size ** 2))
+    d_stat['image size (%s)' % tp] = tuple(im_size.tolist())
+    d_stat['image diagonal (%s)' % tp] = np.sqrt(np.sum(im_size ** 2))
+
+    for m in ['mean', 'std', 'min', 'max']:
+        d_stat['rTRE %s' % m] = d_stat['TRE %s' % m] / im_diag
 
     return d_stat
 
@@ -522,3 +543,22 @@ def load_image(img_path):
     if img.ndim == 3 and img.shape[2] == 4:
         img = img[:, :, :3]
     return img
+
+
+def find_images(path_folder, name_file):
+    """ find find images in particular flder with given file name
+
+    :param str path_folder:
+    :param str name_file:
+    :return [str]:
+
+    >>> path_dir = update_path(os.path.join('dataset', 'lesions_3', 'scale-5pc'))
+    >>> find_images(path_dir, '29-041-Izd2-w35-Cc10-5-les3')  # doctest: +ELLIPSIS
+    ['...dataset/lesions_3/scale-5pc/29-041-Izd2-w35-Cc10-5-les3.jpg']
+    """
+    assert os.path.isdir(path_folder), 'missing folder: %s' % path_folder
+    paths_img = sorted(glob.glob(os.path.join(path_folder, name_file + '.*')))
+    paths_img = [p for p in paths_img
+                 if os.path.splitext(os.path.basename(p))[-1] in IMAGE_EXT]
+    return paths_img
+

@@ -12,7 +12,7 @@ import numpy as np
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 
-import handlers.utils as utils
+import handlers.utilities as utils
 import handlers.run_evaluate_landmarks as r_eval
 import handlers.run_generate_landmarks as r_generate
 import handlers.run_visualise_landmarks as r_visual
@@ -29,9 +29,10 @@ if not os.path.isdir(PATH_OUTPUT):
 
 def test_00_evaluate_landmarks():
     params = {'path_annots': PATH_ANNOTATIONS,
+              'path_dataset': None,
               'path_output': PATH_OUTPUT,
               'nb_jobs': 1}  # coverage is not able to track in parallelism
-    counts = r_eval.main(params)
+    counts = r_eval.main(**params)
     assert np.sum(counts) > 0, 'nothing evaluated'
 
 
@@ -40,7 +41,7 @@ def test_01_generate_landmarks():
               'path_dataset': PATH_DATASET,
               'scales': utils.SCALES,
               'nb_jobs': 1}  # coverage is not able to track in parallelism
-    c_gene, c_scale = r_generate.main(params)
+    c_gene, c_scale = r_generate.main(**params)
     assert len(c_gene) > 0, 'nothing generated'
     assert len(c_scale) > 0, 'nothing scaled'
 
@@ -51,7 +52,7 @@ def test_02_visualise_landmarks():
               'path_dataset': PATH_DATASET,
               'path_output': PATH_OUTPUT,
               'nb_jobs': 1}  # coverage is not able to track in parallelism
-    counts = r_visual.main(params)
+    counts = r_visual.main(**params)
     assert len([n for n in counts if n > 0]) > 0, 'nothing visualised'
 
 

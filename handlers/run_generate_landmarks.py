@@ -20,15 +20,15 @@ import sys
 import glob
 import logging
 import argparse
-import multiprocessing as mproc
 from functools import partial
 
 import pandas as pd
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
-from handlers import utils
-
-NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
+from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
+from handlers.utilities import (update_path, create_folder,
+                                wrap_execute_parallel,
+                                create_consensus_landmarks)
 
 
 def arg_parse_params():
@@ -45,15 +45,14 @@ def arg_parse_params():
                         help='path to the output directory - dataset',
                         default='dataset')
     parser.add_argument('--scales', type=int, required=False, nargs='*',
-                        help='scales generated for the dataset',
-                        default=utils.SCALES)
+                        help='generated scales for the dataset', default=SCALES)
     parser.add_argument('--nb_jobs', type=int, required=False,
                         help='number of processes in parallel',
                         default=NB_THREADS)
     args = vars(parser.parse_args())
     logging.info('ARG PARAMETERS: \n %s', repr(args))
     for k in (k for k in args if 'path' in k):
-        args[k] = utils.update_path(args[k])
+        args[k] = update_path(args[k])
         assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
     return args
 
@@ -63,10 +62,10 @@ def generate_consensus_landmarks(path_set, path_dataset):
                    if os.path.isdir(p)]
     logging.debug('>> found annotations: %i', len(path_annots))
 
-    dict_lnds, dict_lens = utils.create_consensus_landmarks(path_annots)
+    dict_lnds, dict_lens = create_consensus_landmarks(path_annots)
 
-    path_set = utils.create_folder(path_dataset, os.path.basename(path_set))
-    path_scale = utils.create_folder(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
+    path_set = create_folder(path_dataset, os.path.basename(path_set))
+    path_scale = create_folder(path_set, TEMPLATE_FOLDER_SCALE % 100)
     for name in dict_lnds:
         dict_lnds[name].to_csv(os.path.join(path_scale, name))
 
@@ -80,15 +79,15 @@ def dataset_generate_landmarks(path_annots, path_dataset,
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
-    counts = list(utils.wrap_execute_parallel(_wrap_lnds, sorted(list_sets),
-                                              desc='consensus landmarks',
-                                              nb_jobs=nb_jobs))
+    counts = list(wrap_execute_parallel(
+        _wrap_lnds, sorted(list_sets), nb_jobs=nb_jobs,
+        desc='consensus landmarks @%i-threads' % nb_jobs))
     return counts
 
 
-def scale_set_landmarks(path_set, scales=utils.SCALES):
+def scale_set_landmarks(path_set, scales=SCALES):
     logging.debug('> processing: %s', path_set)
-    path_scale100 = os.path.join(path_set, utils.TEMPLATE_FOLDER_SCALE % 100)
+    path_scale100 = os.path.join(path_set, TEMPLATE_FOLDER_SCALE % 100)
     if not os.path.isdir(path_scale100):
         logging.error('missing base scale 100pc in "%s"', path_scale100)
         return
@@ -100,8 +99,8 @@ def scale_set_landmarks(path_set, scales=utils.SCALES):
         scales.remove(100)  # drop the base scale
     set_scales = {}
     for sc in scales:
-        folder_name = utils.TEMPLATE_FOLDER_SCALE % sc
-        path_scale = utils.create_folder(path_set, folder_name)
+        folder_name = TEMPLATE_FOLDER_SCALE % sc
+        path_scale = create_folder(path_set, folder_name)
         for name in dict_lnds:
             df_scale = dict_lnds[name] * (sc / 100.)
             df_scale.to_csv(os.path.join(path_scale, name))
@@ -110,27 +109,23 @@ def scale_set_landmarks(path_set, scales=utils.SCALES):
     return dict_lens
 
 
-def dataset_scale_landmarks(path_dataset, scales=utils.SCALES,
-                            nb_jobs=NB_THREADS):
+def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
     list_sets = [p for p in glob.glob(os.path.join(path_dataset, '*'))
                  if os.path.isdir(p)]
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_scale = partial(scale_set_landmarks, scales=scales)
-    counts = list(utils.wrap_execute_parallel(_wrap_scale,
-                                              sorted(list_sets),
-                                              desc='scaling sets',
-                                              nb_jobs=nb_jobs))
+    counts = list(wrap_execute_parallel(
+        _wrap_scale, sorted(list_sets), nb_jobs=nb_jobs,
+        desc='scaling sets @%i-threads' % nb_jobs))
     return counts
 
 
-def main(params):
-    count_gene = dataset_generate_landmarks(params['path_annots'],
-                                            params['path_dataset'],
-                                            nb_jobs=params['nb_jobs'])
-    count_scale = dataset_scale_landmarks(params['path_dataset'],
-                                          scales=params['scales'],
-                                          nb_jobs=params['nb_jobs'])
+def main(path_annots, path_dataset, scales, nb_jobs=NB_THREADS):
+    count_gene = dataset_generate_landmarks(path_annots, path_dataset,
+                                            nb_jobs=nb_jobs)
+    count_scale = dataset_scale_landmarks(path_dataset, scales=scales,
+                                          nb_jobs=nb_jobs)
     return count_gene, count_scale
 
 
@@ -139,6 +134,6 @@ if __name__ == '__main__':
     logging.info('running...')
 
     params = arg_parse_params()
-    main(params)
+    main(**params)
 
     logging.info('DONE')
