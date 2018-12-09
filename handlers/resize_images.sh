@@ -5,7 +5,7 @@
 # images has to be saved just in the folder "scale-100pc", no sub-folders
 # expected folder structure is DATASET/<tissue>/scale-100pc/<image>
 # where the scaled versions are saved in DATASET/<tissue>/scale-<number>pc/<image>
-# >> handlers/resize_images.sh dataset/lesions_1 .jpg
+# >> handlers/resize_images.sh dataset/lung-lesion_1 .jpg
 
 # input tissue folder
 input_folder=$1

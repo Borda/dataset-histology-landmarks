@@ -17,16 +17,16 @@ import pandas as pd
 import matplotlib.pylab as plt
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
-SCALES = [5, 10, 25, 50, 100]
+SCALES = (5, 10, 25, 50, 100)
 # template nema for scale folder
-TEMPLATE_FOLDER_SCALE = 'scale-%dpc'
-# regular expresion patters for determining scale and user
-REEXP_FOLDER_ANNOT = 'user-(.\S+)_scale-(\d+)pc'
-REEXP_FOLDER_SCALE = '\S*scale-(\d+)pc'
+TEMPLATE_FOLDER_SCALE = r'scale-%dpc'
+# regular expression patters for determining scale and user
+REEXP_FOLDER_ANNOT = r'(.\S+)_scale-(\d+)pc'
+REEXP_FOLDER_SCALE = r'\S*scale-(\d+)pc'
 # default figure size for visualisations
 FIGURE_SIZE = 18
 # expected image extensions
-IMAGE_EXT = ['.png', '.jpg', '.jpeg']
+IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
 
 
@@ -54,6 +54,31 @@ def update_path(path, max_depth=5):
     return path
 
 
+def assert_paths(args):
+    """ check missing paths
+
+    :param {} args: dictionary of arguments
+    :return {}: dictionary of updated arguments
+
+    >>> assert_paths({'path_': 'missing'})  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    AssertionError: missing: (path_) "missing"
+    >>> assert_paths({'abc': 123})
+    {'abc': 123}
+    """
+    for k in (k for k in args if 'path' in k):
+        args[k] = update_path(args[k])
+        assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
+    return args
+
+
+def list_sub_folders(path_folder, name='*'):
+    sub_dirs = sorted([p for p in glob.glob(os.path.join(path_folder, name))
+                       if os.path.isdir(p)])
+    return sub_dirs
+
+
 def wrap_execute_parallel(wrap_func, iterate_vals,
                           nb_jobs=NB_THREADS, desc=''):
     """ wrapper for execution parallel of single thread as for...
@@ -63,9 +88,9 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
     :param int nb_jobs: number og jobs running in parallel
     :param str desc: description for the bar
 
-    >>> [o for o in wrap_execute_parallel(lambda pts: pts ** 2, range(5), nb_jobs=1)]
+    >>> list(wrap_execute_parallel(lambda pts: pts ** 2, range(5), nb_jobs=1))
     [0, 1, 4, 9, 16]
-    >>> [o for o in wrap_execute_parallel(sum, [[0, 1]] * 5, nb_jobs=2)]
+    >>> list(wrap_execute_parallel(sum, [[0, 1]] * 5, nb_jobs=2))
     [1, 1, 1, 1, 1]
     """
     iterate_vals = list(iterate_vals)
@@ -104,6 +129,8 @@ def parse_path_user_scale(path):
 
     >>> parse_path_user_scale('user-KO_scale-.5pc')
     ('', nan)
+    >>> parse_path_user_scale('scale-10pc')
+    ('', nan)
     >>> parse_path_user_scale('user-JB_scale-50pc')
     ('JB', 50)
     >>> parse_path_user_scale('sample/path/user-ck6_scale-25pc')
@@ -114,6 +141,7 @@ def parse_path_user_scale(path):
     if obj is None:
         return '', np.nan
     user, scale = obj.groups()
+    user = user.replace('user-', '')
     scale = int(scale)
     return user, scale
 
@@ -167,14 +195,20 @@ def landmarks_consensus(list_landmarks):
     return df
 
 
-def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
-    """ collect all subdir up to level of scales
+def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
+                       scales=None, with_user=False):
+    """ collect all subdir up to level of scales with user annotations
 
-    :param list_path_lnds:
-    :param path_dataset:
-    :param path_out:
-    :param coll_dirs:
-    :return:
+    expected annotation structure is <tissue>/<user>_scale-<number>pc/<csv-file>
+    expected dataset structure is <tissue>/scale-<number>pc/<image>
+
+    :param [str] paths_landmarks: path to landmarks / annotations
+    :param str path_dataset: path to the dataset with images
+    :param str path_out: path for exporting statistic
+    :param [{}] coll_dirs: list of already exiting collections
+    :param [int] scales: list of allowed scales
+    :param bool with_user: whether required iser info (as annotation)
+    :return [{}]: list of already collections
 
     >>> coll_dirs, d = collect_triple_dir([update_path('annotations')],
     ...                                   update_path('dataset'), 'output')
@@ -191,14 +225,19 @@ def collect_triple_dir(list_path_lnds, path_dataset, path_out, coll_dirs=None):
     """
     if coll_dirs is None:
         coll_dirs = []
-    for path_lnds in list_path_lnds:
+    for path_lnds in paths_landmarks:
         set_name, scale_name = path_lnds.split(os.sep)[-2:]
-        scale = parse_path_scale(scale_name)
+        scale = parse_path_user_scale(scale_name)[1] \
+            if with_user else parse_path_scale(scale_name)
+        # if a scale was not recognised in the last folder name
         if np.isnan(scale):
-            sub_dirs = sorted([p for p in glob.glob(os.path.join(path_lnds, '*'))
-                               if os.path.isdir(p)])
+            sub_dirs = list_sub_folders(path_lnds)
             coll_dirs, sub_dirs = collect_triple_dir(sub_dirs, path_dataset,
-                                                     path_out, coll_dirs)
+                                                     path_out, coll_dirs,
+                                                     scales, with_user)
+            continue
+        # skip particular scale if it is not among chosen
+        if scales is not None and scale not in scales:
             continue
         coll_dirs.append({
             'landmarks': path_lnds,
@@ -244,7 +283,7 @@ def estimate_affine_transform(points_0, points_1):
     y = pad(points_1[:nb])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix, res, rank, s = np.linalg.lstsq(x, y)
+    matrix, _, _, _ = np.linalg.lstsq(x, y, rcond=-1)
 
     transform = lambda pts: unpad(np.dot(pad(pts), matrix))
     points_0_warp = transform(points_0)
@@ -281,12 +320,14 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=5):
     return out, err
 
 
-def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
-    """ compute statistic on errors between reference and sensed landamrks
+def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
+                                im_size=None):
+    """ compute statistic on errors between reference and sensed landmarks
 
     :param ndarray landmarks_ref:
     :param ndarray landmarks_in:
     :param bool use_affine:
+    :param im_size:
     :return:
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
@@ -294,17 +335,21 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
     >>> lnds1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.],
     ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, use_affine=True)
-    >>> [(k, np.round(d_stat[k])) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE
-    [('count', 8.0),
-     ('image_diagonal', 86.0),
-     ('image_size', array([ 65.,  56.])),
-     ('max', 69.0),
-     ('mean', 19.0),
-     ('median', 14.0),
-     ('min', 1.0),
-     ('std', 21.0)]
-    >>> d_stat = compute_landmarks_statistic(lnds0, lnds1)
-    >>> d_stat['mean']  # doctest: +ELLIPSIS
+    >>> [(k, d_stat[k]) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [('TRE count', 8.0),
+     ('TRE max', 68.9...),
+     ('TRE mean', 18.6...),
+     ('TRE median', 13.5...),
+     ('TRE min', 1.0...),
+     ('TRE std', 21.4...),
+     ('image diagonal (estimated)', 85.7...),
+     ('image size (estimated)', (65, 56)),
+     ('rTRE max', 0.8...),
+     ('rTRE mean', 0.2...),
+     ('rTRE min', 0.01...),
+     ('rTRE std', 0.25...)]
+    >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, im_size=(150, 175))
+    >>> d_stat['TRE mean']  # doctest: +ELLIPSIS
     69.0189...
     """
     if isinstance(landmarks_ref, pd.DataFrame):
@@ -316,32 +361,56 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False):
         _, err = estimate_landmark_outliers(landmarks_ref, landmarks_in)
     else:
         nb = min(len(landmarks_ref), len(landmarks_in))
-        err = np.sqrt(np.sum((landmarks_ref[:nb] - landmarks_in[:nb]) ** 2,
-                             axis=1))
+        err = np.sqrt(np.sum((landmarks_ref[:nb] - landmarks_in[:nb]) ** 2, axis=1))
     df_err = pd.DataFrame(err)
     df_stat = df_err.describe().T[['count', 'mean', 'std', 'min', 'max']]
+    df_stat.columns = ['TRE %s' % col for col in df_stat.columns]
     d_stat = dict(df_stat.iloc[0])
-    d_stat['median'] = np.median(err)
+    d_stat['TRE median'] = np.median(err)
 
-    landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
-    im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
-    d_stat['image_size'] = im_size.tolist()
-    d_stat['image_diagonal'] = np.sqrt(np.sum(im_size ** 2))
+    if im_size is None:
+        landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
+        # assuming that the offset is symmetric on all sides
+        im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
+        logging.debug('estimated image size from landmarks: %s', repr(im_size))
+        tp = 'estimated'
+    else:
+        tp = 'true'
+
+    im_size = np.array(im_size[:2], dtype=int)
+    im_diag = np.sqrt(np.sum(im_size ** 2))
+    d_stat['image size (%s)' % tp] = tuple(im_size.tolist())
+    d_stat['image diagonal (%s)' % tp] = np.sqrt(np.sum(im_size ** 2))
+
+    for m in ['mean', 'std', 'min', 'max']:
+        d_stat['rTRE %s' % m] = d_stat['TRE %s' % m] / im_diag
 
     return d_stat
 
 
 def create_consensus_landmarks(path_annots, equal_size=True):
-    """ create a consesus on set of landmarks
+    """ create a consensus on set of landmarks and return normalised to 100%
 
-    :param [str] path_annots:
-    :param bool equal_size:
+    :param [str] path_annots: path to CSV landmarks
+    :param bool equal_size: use only max number of common points, 56 & 65 -> 56
     :return {str: DF}:
+
+    >>> folder = './me-KJ_25'
+    >>> os.mkdir(folder)
+    >>> create_consensus_landmarks([folder])
+    ({}, {})
+    >>> import shutil
+    >>> shutil.rmtree(folder)
     """
     dict_list_lnds = {}
-    # find all landmars for particular image
+    # find all landmark for particular image
     for p_annot in path_annots:
         _, scale = parse_path_user_scale(p_annot)
+        if np.isnan(scale):
+            logging.warning('wrong set annotation scale, '
+                            'required `<user>_scale-<number>pc` but got %s',
+                            os.path.basename(p_annot))
+            continue
         list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
         for p_csv in list_csv:
             name = os.path.basename(p_csv)
@@ -509,3 +578,53 @@ def load_image(img_path):
     if img.ndim == 3 and img.shape[2] == 4:
         img = img[:, :, :3]
     return img
+
+
+def get_file_ext(path_file):
+    return os.path.splitext(os.path.basename(path_file))[-1]
+
+
+def find_images(path_folder, name_file):
+    """ find find images in particular flder with given file name
+
+    :param str path_folder:
+    :param str name_file:
+    :return [str]:
+
+    >>> path_dir = update_path(os.path.join('dataset', 'lung-lesion_3', 'scale-5pc'))
+    >>> find_images(path_dir, '29-041-Izd2-w35-Cc10-5-les3')  # doctest: +ELLIPSIS
+    ['...dataset/lung-lesion_3/scale-5pc/29-041-Izd2-w35-Cc10-5-les3.jpg']
+    """
+    assert os.path.isdir(path_folder), 'missing folder: %s' % path_folder
+    paths_img = [p for p in glob.glob(os.path.join(path_folder, name_file + '.*'))
+                 if get_file_ext(p) in IMAGE_EXT]
+    return sorted(paths_img)
+
+
+def find_image_full_size(path_dataset, name_set, name_image):
+    """ find the smallest image of given tissue and stain and return images size
+
+    :param str path_dataset: path to the image dataset
+    :param str name_set: name of particular tissue
+    :param str name_image: image name - stain
+    :return (int, int):
+
+    >>> find_image_full_size(update_path('dataset'), 'lung-lesion_3',
+    ...                      '29-041-Izd2-w35-He-les3')
+    (13220, 17840)
+    >>> find_image_full_size(update_path('dataset'), 'lung-lesion_1', '29-...-He')
+    """
+    if path_dataset is None:
+        return None
+    path_set = os.path.join(path_dataset, name_set)
+    if not os.path.isdir(path_set):
+        return None
+    paths_img = glob.glob(os.path.join(path_set, 'scale-*pc', name_image + '.*'))
+    scales_paths_img = [(parse_path_scale(os.path.dirname(p)), p)
+                        for p in paths_img if get_file_ext(p) in IMAGE_EXT]
+    if not scales_paths_img:
+        return None
+    scale, path_img = sorted(scales_paths_img)[0]
+    im_size = load_image(path_img).shape[:2]
+    im_size_full = np.array(im_size) * (100. / scale)
+    return tuple(im_size_full.astype(int))
