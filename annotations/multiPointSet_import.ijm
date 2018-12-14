@@ -45,4 +45,6 @@ if (posix=="csv") {
 }
  
 // show the points in the image
-makeSelection("point", xPoints, yPoints); 
+makeSelection("point", xPoints, yPoints);
+
+run("Point Tool...", "label");

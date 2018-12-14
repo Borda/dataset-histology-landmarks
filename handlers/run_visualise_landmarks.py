@@ -8,6 +8,10 @@ The expected structure for dataset is as follows
 EXAMPLE
 -------
 >> python run_visualise_landmarks.py -l dataset -i dataset -o output
+>> python handlers/run_visualise_landmarks.py \
+    -l /datagrid/Medical/dataset_ANHIR/landmarks_annot \
+    -i /datagrid/Medical/dataset_ANHIR/images_private \
+    -o /local/borovec/Data/dataset-ANHIR-visu --nb_jobs 2
 
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
@@ -116,6 +120,9 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
 
     coll_dirs, _ = collect_triple_dir([path_landmarks], path_dataset,
                                       path_output, scales=scales)
+    # filter existing
+    coll_dirs = [d for d in coll_dirs
+                 if os.path.isdir(d['images']) and os.path.isdir(d['landmarks'])]
     if not coll_dirs:
         logging.info('No sub-folders collected.')
         return 0
