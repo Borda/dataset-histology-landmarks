@@ -16,7 +16,6 @@ EXAMPLE
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
-
 import os
 import sys
 import glob
@@ -28,15 +27,26 @@ if os.environ.get('DISPLAY', '') == '':
     logging.warning('No display found. Using non-interactive Agg backend.')
     matplotlib.use('Agg')
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+try:
+    import cv2 as cv
+    OPENCV = True
+except ImportError:
+    logging.exception('Missing OpenCV, no image warping will be performed.')
+    OPENCV = False
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, SCALES
 from handlers.utilities import (
-    assert_paths, load_image, find_images, collect_triple_dir, wrap_execute_parallel,
+    assert_paths, load_image, find_images, collect_triple_dir,
+    wrap_execute_parallel, estimate_affine_transform,
     figure_pair_images_landmarks, figure_image_landmarks
 )
+
+NAME_FIGURE_PAIR = 'PAIR___%s___AND___%s.pdf'
+NAME_FIGURE_PAIR_WARPED = 'PAIR___%s___AND___%s___WARPED.pdf'
 
 
 def arg_parse_params():
@@ -65,22 +75,40 @@ def arg_parse_params():
     return args
 
 
-def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
-    p_lnds, p_img = lnds_img_pair1
-    name1 = os.path.splitext(os.path.basename(p_img))[0]
-    lnd1 = pd.read_csv(p_lnds)
-    img1 = load_image(p_img)
+def load_image_landmarks(lnds_img_pair):
+    p_lnds, p_img = lnds_img_pair
+    name = os.path.splitext(os.path.basename(p_img))[0]
+    lnd = pd.read_csv(p_lnds)
+    img = load_image(p_img)
+    return name, lnd, img
 
-    p_lnds, p_img = lnds_img_pair2
-    name2 = os.path.splitext(os.path.basename(p_img))[0]
-    lnd2 = pd.read_csv(p_lnds)
-    img2 = load_image(p_img)
+
+def warp_affine(img1, img2, lnd1, lnd2):
+    nb = min(len(lnd1), len(lnd2))
+    pts1, pts2 = lnd1[['X', 'Y']].values[:nb], lnd2[['X', 'Y']].values[:nb]
+    matrix, _, pts2_warp = estimate_affine_transform(pts1, pts2)
+    lnd2_warp = pd.DataFrame(pts2_warp, columns=['X', 'Y'])
+    matrix_inv = np.linalg.pinv(matrix).T[:2, :3].astype(np.float64)
+    img2_warp = cv.warpAffine(img2, matrix_inv, img1.shape[:2][::-1])
+    return img2_warp, lnd2_warp
+
+
+def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
+    name1, lnd1, img1 = load_image_landmarks(lnds_img_pair1)
+    name2, lnd2, img2 = load_image_landmarks(lnds_img_pair2)
 
     fig = figure_pair_images_landmarks((lnd1, lnd2), (img1, img2),
                                        names=(name1, name2))
-    name = 'PAIR___%s___AND___%s.pdf' % (name1, name2)
-    fig.savefig(os.path.join(path_out, name))
+    fig.savefig(os.path.join(path_out, NAME_FIGURE_PAIR % (name1, name2)))
     plt.close(fig)
+
+    if OPENCV:
+        img2_warp, lnd2_warp = warp_affine(img1, img2, lnd1, lnd2)
+        del img2, lnd2
+        fig = figure_pair_images_landmarks((lnd1, lnd2_warp), (img1, img2_warp),
+                                           names=(name1, name2 + ' [WARPED AFFINE]'))
+        fig.savefig(os.path.join(path_out, NAME_FIGURE_PAIR_WARPED % (name1, name2)))
+        plt.close(fig)
 
 
 def export_visual_set_scale(d_paths):
@@ -106,8 +134,9 @@ def export_visual_set_scale(d_paths):
         fig.savefig(os.path.join(d_paths['output'], name_ + '.pdf'))
         plt.close(fig)
     # draw and export PAIRS of image-landmarks
-    for p1, p2 in [(p1, p2) for i, p1 in enumerate(list_lnds_imgs)
-                   for p2 in list_lnds_imgs[i + 1:]]:
+    path_pairs = [(p1, p2) for i, p1 in enumerate(list_lnds_imgs)
+                  for p2 in list_lnds_imgs[i + 1:]]
+    for p1, p2 in path_pairs:
         export_visual_pairs(p1, p2, d_paths['output'])
     return len(list_lnds_imgs)
 
@@ -131,6 +160,7 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
     counts = list(wrap_execute_parallel(
         export_visual_set_scale, coll_dirs, nb_jobs=nb_jobs,
         desc='visualise @%i-threads' % nb_jobs))
+    logging.info('Performed %i visualisations', sum(counts))
     return counts
 
 

@@ -277,29 +277,30 @@ def estimate_affine_transform(points_0, points_1):
     # SEE: https://stackoverflow.com/questions/20546182
     nb = min(len(points_0), len(points_1))
     # Pad the data with ones, so that our transformation can do translations
-    pad = lambda pts: np.hstack([pts, np.ones((pts.shape[0], 1))])
-    unpad = lambda pts: pts[:, :-1]
-    x = pad(points_0[:nb])
-    y = pad(points_1[:nb])
+    _fn_pad = lambda pts: np.hstack([pts, np.ones((pts.shape[0], 1))])
+    _fn_unpad = lambda pts: pts[:, :-1]
+    x = _fn_pad(points_0[:nb])
+    y = _fn_pad(points_1[:nb])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
     matrix, _, _, _ = np.linalg.lstsq(x, y, rcond=-1)
 
-    transform = lambda pts: unpad(np.dot(pad(pts), matrix))
-    points_0_warp = transform(points_0)
+    _fn_transform = lambda pts: _fn_unpad(np.dot(_fn_pad(pts), matrix))
+    points_0_warp = _fn_transform(points_0)
 
-    transform_inv = lambda pts: unpad(np.dot(pad(pts), np.linalg.pinv(matrix)))
-    points_1_warp = transform_inv(points_1)
+    matrix_inv = np.linalg.pinv(matrix)
+    _fn_transform_inv = lambda pts: _fn_unpad(np.dot(_fn_pad(pts), matrix_inv))
+    points_1_warp = _fn_transform_inv(points_1)
 
     return matrix, points_0_warp, points_1_warp
 
 
-def estimate_landmark_outliers(points_0, points_1, std_coef=5):
+def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     """ estimated landmark outliers after affine alignment
 
-    :param ndarray points_0: set ot points
-    :param ndarray points_1: set ot points
-    :param float std_coef:
+    :param ndarray points_0: set of points
+    :param ndarray points_1: set of points
+    :param float std_coef: range of STD error to be assumed as inlier
     :return ([bool], [float]): vector or binary outliers and computed error
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
@@ -585,7 +586,7 @@ def get_file_ext(path_file):
 
 
 def find_images(path_folder, name_file):
-    """ find find images in particular flder with given file name
+    """ find find images in particular folder with given file name
 
     :param str path_folder:
     :param str name_file:
