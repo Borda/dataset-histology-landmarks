@@ -9,6 +9,7 @@ import os
 import re
 import glob
 import logging
+import warnings
 import multiprocessing as mproc
 
 import tqdm
@@ -558,6 +559,37 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     return fig
 
 
+def io_image_decorate(func):
+    """ costume decorator to suppers debug messages from the PIL function
+    to suppress PIl debug logging
+    - DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+
+    :param func:
+    :return:
+    """
+    def wrap(*args, **kwargs):
+        log_level = logging.getLogger().getEffectiveLevel()
+        logging.getLogger().setLevel(logging.INFO)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            response = func(*args, **kwargs)
+        logging.getLogger().setLevel(log_level)
+        return response
+    return wrap
+
+
+@io_image_decorate
+def imread(path_img):
+    """ just a wrapper to suppers debug messages from the matplotlib function
+    to suppress PIL warning about - DecompressionBombWarning:
+        exceeds limit of ... pixels, could be decompression bomb DOS attack
+
+    :param str path_img:
+    :return ndarray:
+    """
+    return plt.imread(path_img)
+
+
 def load_image(img_path):
     """ loading very large images
 
@@ -575,7 +607,7 @@ def load_image(img_path):
     >>> os.remove(n_img)
     """
     assert os.path.isfile(img_path), 'missing image: %s' % img_path
-    img = plt.imread(img_path)
+    img = imread(img_path)
     if img.ndim == 3 and img.shape[2] == 4:
         img = img[:, :, :3]
     return img
