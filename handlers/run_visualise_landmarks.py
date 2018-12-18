@@ -96,6 +96,9 @@ def warp_affine(img1, img2, lnd1, lnd2):
 def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
     name1, lnd1, img1 = load_image_landmarks(lnds_img_pair1)
     name2, lnd2, img2 = load_image_landmarks(lnds_img_pair2)
+    if img1 is None or img2 is None:
+        logging.warning('Fail to load one of required images.')
+        return
 
     fig = figure_pair_images_landmarks((lnd1, lnd2), (img1, img2),
                                        names=(name1, name2))
@@ -130,7 +133,10 @@ def export_visual_set_scale(d_paths):
     # draw and export image-landmarks
     for p_lnds, p_img in list_lnds_imgs:
         name_ = os.path.splitext(os.path.basename(p_img))[0]
-        fig = figure_image_landmarks(pd.read_csv(p_lnds), load_image(p_img))
+        img = load_image(p_img)
+        if img is None:
+            continue
+        fig = figure_image_landmarks(pd.read_csv(p_lnds), img)
         fig.savefig(os.path.join(d_paths['output'], name_ + '.pdf'))
         plt.close(fig)
     # draw and export PAIRS of image-landmarks

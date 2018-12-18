@@ -587,7 +587,10 @@ def imread(path_img):
     :param str path_img:
     :return ndarray:
     """
-    return plt.imread(path_img)
+    try:
+        return plt.imread(path_img)
+    except Exception:
+        logging.exception('Image: %s', path_img)
 
 
 def load_image(img_path):
@@ -608,7 +611,7 @@ def load_image(img_path):
     """
     assert os.path.isfile(img_path), 'missing image: %s' % img_path
     img = imread(img_path)
-    if img.ndim == 3 and img.shape[2] == 4:
+    if img is not None and img.ndim == 3 and img.shape[2] == 4:
         img = img[:, :, :3]
     return img
 
