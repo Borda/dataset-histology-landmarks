@@ -9,6 +9,7 @@ import os
 import re
 import glob
 import logging
+import warnings
 import multiprocessing as mproc
 
 import tqdm
@@ -115,6 +116,18 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
 
 
 def create_folder(path_base, folder):
+    """ create a folder
+
+    :param str path_base: path to the roof of creating folder
+    :param str folder: folder name
+    :return str: full path
+
+    >>> p = create_folder('.', 'sample-folder')
+    >>> p
+    './sample-folder'
+    >>> import shutil
+    >>> shutil.rmtree(p, ignore_errors=True)
+    """
     path_folder = os.path.join(path_base, folder)
     if not os.path.isdir(path_folder):
         os.mkdir(path_folder)
@@ -437,6 +450,12 @@ def create_consensus_landmarks(path_annots, equal_size=True):
 
 
 def create_figure(im_size, max_fig_size=FIGURE_SIZE):
+    """ create a figure proportional to image size with maximal size in inches
+
+    :param (int, int) im_size: image size in pixels
+    :param float max_fig_size:  maximal figure size in inches
+    :return Figure, Axis:
+    """
     norm_size = np.array(im_size) / float(np.max(im_size))
     # reverse dimensions and scale by fig size
     fig_size = norm_size[::-1] * max_fig_size
@@ -444,9 +463,25 @@ def create_figure(im_size, max_fig_size=FIGURE_SIZE):
     return fig, ax
 
 
-def format_figure(fig, ax, im_size, lnds):
-    ax.set_xlim([min(0, np.min(lnds[1])), max(im_size[1], np.max(lnds[1]))])
-    ax.set_ylim([max(im_size[0], np.max(lnds[0])), min(0, np.min(lnds[0]))])
+def format_figure(fig, ax, im_size, landmarks):
+    """ standard figure reformatting:
+    * use tight layout
+    * set ranges according to the image
+
+    :param obj fig: figure
+    :param obj ax: axis
+    :param (int, int) im_size: image size in pixels
+    :param ndarray landmarks: landmarks
+    :return Figure:
+
+    >>> fig, ax = create_figure((150, 200), 5.)
+    >>> lnds = np.random.random((25, 2)) * 100
+    >>> fig = format_figure(fig, ax, (150, 200), lnds)
+    """
+    ax.set_xlim([min(0, np.min(landmarks[1])),
+                 max(im_size[1], np.max(landmarks[1]))])
+    ax.set_ylim([max(im_size[0], np.max(landmarks[0])),
+                 min(0, np.min(landmarks[0]))])
     fig.tight_layout()
     return fig
 
@@ -558,6 +593,40 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     return fig
 
 
+def io_image_decorate(func):
+    """ costume decorator to suppers debug messages from the PIL function
+    to suppress PIl debug logging
+    - DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+
+    :param func: wrapped function
+    :return:
+    """
+    def wrap(*args, **kwargs):
+        log_level = logging.getLogger().getEffectiveLevel()
+        logging.getLogger().setLevel(logging.INFO)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            response = func(*args, **kwargs)
+        logging.getLogger().setLevel(log_level)
+        return response
+    return wrap
+
+
+@io_image_decorate
+def imread(path_img):
+    """ just a wrapper to suppers debug messages from the matplotlib function
+    to suppress PIL warning about - DecompressionBombWarning:
+        exceeds limit of ... pixels, could be decompression bomb DOS attack
+
+    :param str path_img:
+    :return ndarray|None:
+    """
+    try:
+        return plt.imread(path_img)
+    except Exception:
+        logging.exception('Image: %s', path_img)
+
+
 def load_image(img_path):
     """ loading very large images
 
@@ -565,7 +634,7 @@ def load_image(img_path):
      lib (opencv, skimage, Pillow) is able to load larger images then 64k or 32k.
 
     :param str img_path: path to the image
-    :return ndarray: image
+    :return ndarray|None: image
 
     >>> img = np.random.random((150, 200, 4))
     >>> n_img = 'sample-image.png'
@@ -573,10 +642,16 @@ def load_image(img_path):
     >>> load_image(n_img).shape
     (150, 200, 3)
     >>> os.remove(n_img)
+
+    Fail loading CSV file
+    >>> p_csv = 'sample-file.csv'
+    >>> pd.DataFrame().to_csv(p_csv)
+    >>> load_image(p_csv)
+    >>> os.remove(p_csv)
     """
     assert os.path.isfile(img_path), 'missing image: %s' % img_path
-    img = plt.imread(img_path)
-    if img.ndim == 3 and img.shape[2] == 4:
+    img = imread(img_path)
+    if img is not None and img.ndim == 3 and img.shape[2] == 4:
         img = img[:, :, :3]
     return img
 
