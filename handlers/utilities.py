@@ -261,21 +261,35 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
     return coll_dirs, []
 
 
+def transform_points(points, matrix):
+    """ transfrom points according to given transformation matrix
+
+    :param ndarray points: set of points of shape (N, 2)
+    :param ndarray matrix: transformation matrix of shape (3, 3)
+    :return ndarray: warped points  of shape (N, 2)
+    """
+    # Pad the data with ones, so that our transformation can do translations
+    pts_pad = np.hstack([points, np.ones((points.shape[0], 1))])
+    points_warp = np.dot(pts_pad, matrix.T)
+    return points_warp[:, :-1]
+
+
 def estimate_affine_transform(points_0, points_1):
     """ estimate Affine transformations and warp particular points sets
     to the other coordinate frame
 
-    :param ndarray points_0: set of points
-    :param ndarray points_1: set of points
-    :return (ndarray, ndarray, ndarray): transform. matrix and warped point sets
+    :param ndarray points_0: set of points of shape (N, 2)
+    :param ndarray points_1: set of points of shape (N, 2)
+    :return (ndarray, ndarray, ndarray, ndarray): transform. matrix & inverse
+        and warped point sets
 
     >>> pts0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.]], dtype=int)
     >>> pts1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.]])
-    >>> matrix, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
-    >>> np.round(matrix, 2)
-    array([[ -1.,   0.,  -0.],
-           [  0.,   1.,  -0.],
-           [ 65., -60.,   1.]])
+    >>> mx, mx_inv, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
+    >>> np.round(mx, 2)
+    array([[ -1.,   0.,  65.],
+           [  0.,   1., -60.],
+           [  0.,   0.,   1.]])
     >>> pts0_w
     array([[ 61.,  56.],
            [ 61., -56.],
@@ -290,22 +304,20 @@ def estimate_affine_transform(points_0, points_1):
     # SEE: https://stackoverflow.com/questions/20546182
     nb = min(len(points_0), len(points_1))
     # Pad the data with ones, so that our transformation can do translations
-    _fn_pad = lambda pts: np.hstack([pts, np.ones((pts.shape[0], 1))])
-    _fn_unpad = lambda pts: pts[:, :-1]
-    x = _fn_pad(points_0[:nb])
-    y = _fn_pad(points_1[:nb])
+    x = np.hstack([points_0[:nb], np.ones((nb, 1))])
+    y = np.hstack([points_1[:nb], np.ones((nb, 1))])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix, _, _, _ = np.linalg.lstsq(x, y, rcond=-1)
+    matrix = np.linalg.lstsq(x, y, rcond=-1)[0].T
+    matrix[-1, :] = [0, 0, 1]
+    # invert the transformtion matrix
+    matrix_inv = np.linalg.pinv(matrix.T).T
+    matrix_inv[-1, :] = [0, 0, 1]
 
-    _fn_transform = lambda pts: _fn_unpad(np.dot(_fn_pad(pts), matrix))
-    points_0_warp = _fn_transform(points_0)
+    points_0_warp = transform_points(points_0, matrix)
+    points_1_warp = transform_points(points_1, matrix_inv)
 
-    matrix_inv = np.linalg.pinv(matrix)
-    _fn_transform_inv = lambda pts: _fn_unpad(np.dot(_fn_pad(pts), matrix_inv))
-    points_1_warp = _fn_transform_inv(points_1)
-
-    return matrix, points_0_warp, points_1_warp
+    return matrix, matrix_inv, points_0_warp, points_1_warp
 
 
 def estimate_landmark_outliers(points_0, points_1, std_coef=3):
@@ -327,7 +339,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     array([  1.02,  16.78,  10.29,   5.47,   6.88,  18.52,  20.94,  68.96])
     """
     nb = min(len(points_0), len(points_1))
-    _, points_0w, _ = estimate_affine_transform(points_0[:nb], points_1[:nb])
+    _, _, points_0w, _ = estimate_affine_transform(points_0[:nb], points_1[:nb])
     err = np.sqrt(np.sum((points_1[:nb] - points_0w) ** 2, axis=1))
     norm = np.std(err) * std_coef
     out = (err > norm)

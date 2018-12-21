@@ -86,9 +86,9 @@ def load_image_landmarks(lnds_img_pair):
 def warp_affine(img1, img2, lnd1, lnd2):
     nb = min(len(lnd1), len(lnd2))
     pts1, pts2 = lnd1[['X', 'Y']].values[:nb], lnd2[['X', 'Y']].values[:nb]
-    matrix, _, pts2_warp = estimate_affine_transform(pts1, pts2)
+    _, matrix_inv, _, pts2_warp = estimate_affine_transform(pts1, pts2)
     lnd2_warp = pd.DataFrame(pts2_warp, columns=['X', 'Y'])
-    matrix_inv = np.linalg.pinv(matrix).T[:2, :3].astype(np.float64)
+    matrix_inv = matrix_inv[:2, :3].astype(np.float64)
     img2_warp = cv.warpAffine(img2, matrix_inv, img1.shape[:2][::-1])
     return img2_warp, lnd2_warp
 
