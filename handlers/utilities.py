@@ -29,6 +29,7 @@ FIGURE_SIZE = 18
 # expected image extensions
 IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
+LANDMARK_COORDS = ('X', 'Y')
 
 
 def update_path(path, max_depth=5):
@@ -186,8 +187,8 @@ def landmarks_consensus(list_landmarks):
     :param [DF] list_landmarks: list of DataFrames
     :return DF:
 
-    >>> lnds1 = pd.DataFrame(np.zeros((5, 2)), columns=['X', 'Y'])
-    >>> lnds2 = pd.DataFrame(np.ones((6, 2)), columns=['X', 'Y'])
+    >>> lnds1 = pd.DataFrame(np.zeros((5, 2)), columns=LANDMARK_COORDS)
+    >>> lnds2 = pd.DataFrame(np.ones((6, 2)), columns=LANDMARK_COORDS)
     >>> landmarks_consensus([lnds1, lnds2])
          X    Y
     0  0.5  0.5
@@ -201,7 +202,7 @@ def landmarks_consensus(list_landmarks):
     df = list_landmarks[np.argmax(lens)]
     lens = sorted(set(lens), reverse=True)
     for l in lens:
-        for ax in ['X', 'Y']:
+        for ax in LANDMARK_COORDS:
             df[ax][:l] = np.mean([lnd[ax].values[:l]
                                   for lnd in list_landmarks
                                   if len(lnd) >= l], axis=0)
@@ -379,9 +380,9 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
     69.0189...
     """
     if isinstance(landmarks_ref, pd.DataFrame):
-        landmarks_ref = landmarks_ref[['X', 'Y']].values
+        landmarks_ref = landmarks_ref[list(LANDMARK_COORDS)].values
     if isinstance(landmarks_in, pd.DataFrame):
-        landmarks_in = landmarks_in[['X', 'Y']].values
+        landmarks_in = landmarks_in[list(LANDMARK_COORDS)].values
 
     if use_affine:
         _, err = estimate_landmark_outliers(landmarks_ref, landmarks_in)
@@ -513,13 +514,13 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     >>> fig = figure_image_landmarks(lnds, img)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
-    >>> df_lnds = pd.DataFrame(lnds, columns=['X', 'Y'])
+    >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)
     >>> fig = figure_image_landmarks(df_lnds, None)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     """
     if isinstance(landmarks, pd.DataFrame):
-        landmarks = landmarks[['X', 'Y']].values
+        landmarks = landmarks[list(LANDMARK_COORDS)].values
     if image is None:
         image = np.zeros(np.max(landmarks, axis=0) + 25)
 
@@ -554,7 +555,7 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     >>> fig = figure_pair_images_landmarks((lnds, lnds + 5), (img, img))
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
-    >>> df_lnds = pd.DataFrame(lnds, columns=['X', 'Y'])
+    >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)
     >>> fig = figure_pair_images_landmarks((df_lnds, df_lnds), (img, None))
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
@@ -564,9 +565,12 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
         % (len(pair_landmarks), len(pair_images))
     pair_landmarks = list(pair_landmarks)
     pair_images = list(pair_images)
+    nb_lnds = min(len(lnds) for lnds in pair_landmarks)
     for i, landmarks in enumerate(pair_landmarks):
         if isinstance(landmarks, pd.DataFrame):
-            pair_landmarks[i] = landmarks[['X', 'Y']].values
+            pair_landmarks[i] = landmarks[list(LANDMARK_COORDS)].values
+        # filter only the common landmarks
+        pair_landmarks[i] = pair_landmarks[i][:nb_lnds]
     for i, image in enumerate(pair_images):
         if image is None:
             pair_images[i] = np.zeros(np.max(pair_landmarks[i], axis=0) + 25)
@@ -598,10 +602,8 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
         ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')
 
     ax.legend()
-
     fig = format_figure(fig, ax, im_size, ([lnds[0] for lnds in pair_landmarks],
                                            [lnds[1] for lnds in pair_landmarks]))
-
     return fig
 
 
