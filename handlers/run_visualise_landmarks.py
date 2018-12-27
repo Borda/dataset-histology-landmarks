@@ -162,7 +162,9 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
     if not coll_dirs:
         logging.info('No sub-folders collected.')
         return 0
-    logging.info('Collected sub-folder: %i', len(coll_dirs))
+    lnds_dirs = sorted([cd['landmarks'] for cd in coll_dirs])
+    logging.info('Collected %i sub-folder: \n%s', len(coll_dirs),
+                 '\n'.join(lnds_dirs))
 
     counts = list(wrap_execute_parallel(
         export_visual_set_scale, coll_dirs, nb_jobs=nb_jobs,
