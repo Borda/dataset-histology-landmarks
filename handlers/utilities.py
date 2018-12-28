@@ -469,7 +469,7 @@ def create_consensus_landmarks(path_annots, equal_size=True):
 def create_figure(im_size, max_fig_size=FIGURE_SIZE):
     """ create a figure proportional to image size with maximal size in inches
 
-    :param (int, int) im_size: image size in pixels
+    :param (int, int)|(float, float) im_size: image size in pixels
     :param float max_fig_size:  maximal figure size in inches
     :return Figure, Axis:
     """
