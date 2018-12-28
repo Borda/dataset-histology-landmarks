@@ -97,7 +97,11 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
     """
     iterate_vals = list(iterate_vals)
 
-    tqdm_bar = tqdm.tqdm(total=len(iterate_vals), desc=desc)
+    if desc is not None:
+        desc = '%s @%i-threads' % (desc, nb_jobs)
+        tqdm_bar = tqdm.tqdm(total=len(iterate_vals), desc=desc)
+    else:
+        tqdm_bar = None
 
     if nb_jobs > 1:
         logging.debug('perform sequential in %i threads', nb_jobs)
