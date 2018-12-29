@@ -18,7 +18,7 @@ import pandas as pd
 import matplotlib.pylab as plt
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
-SCALES = (5, 10, 25, 50, 100)
+SCALES = (5, 10, 20, 25, 50, 100)
 # template nema for scale folder
 TEMPLATE_FOLDER_SCALE = r'scale-%dpc'
 # regular expression patters for determining scale and user
@@ -29,6 +29,7 @@ FIGURE_SIZE = 18
 # expected image extensions
 IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
+LANDMARK_COORDS = ('X', 'Y')
 
 
 def update_path(path, max_depth=5):
@@ -96,7 +97,11 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
     """
     iterate_vals = list(iterate_vals)
 
-    tqdm_bar = tqdm.tqdm(total=len(iterate_vals), desc=desc)
+    if desc is not None:
+        desc = '%s @%i-threads' % (desc, nb_jobs)
+        tqdm_bar = tqdm.tqdm(total=len(iterate_vals), desc=desc)
+    else:
+        tqdm_bar = None
 
     if nb_jobs > 1:
         logging.debug('perform sequential in %i threads', nb_jobs)
@@ -186,8 +191,8 @@ def landmarks_consensus(list_landmarks):
     :param [DF] list_landmarks: list of DataFrames
     :return DF:
 
-    >>> lnds1 = pd.DataFrame(np.zeros((5, 2)), columns=['X', 'Y'])
-    >>> lnds2 = pd.DataFrame(np.ones((6, 2)), columns=['X', 'Y'])
+    >>> lnds1 = pd.DataFrame(np.zeros((5, 2)), columns=LANDMARK_COORDS)
+    >>> lnds2 = pd.DataFrame(np.ones((6, 2)), columns=LANDMARK_COORDS)
     >>> landmarks_consensus([lnds1, lnds2])
          X    Y
     0  0.5  0.5
@@ -201,7 +206,7 @@ def landmarks_consensus(list_landmarks):
     df = list_landmarks[np.argmax(lens)]
     lens = sorted(set(lens), reverse=True)
     for l in lens:
-        for ax in ['X', 'Y']:
+        for ax in LANDMARK_COORDS:
             df[ax][:l] = np.mean([lnd[ax].values[:l]
                                   for lnd in list_landmarks
                                   if len(lnd) >= l], axis=0)
@@ -261,21 +266,35 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
     return coll_dirs, []
 
 
+def transform_points(points, matrix):
+    """ transfrom points according to given transformation matrix
+
+    :param ndarray points: set of points of shape (N, 2)
+    :param ndarray matrix: transformation matrix of shape (3, 3)
+    :return ndarray: warped points  of shape (N, 2)
+    """
+    # Pad the data with ones, so that our transformation can do translations
+    pts_pad = np.hstack([points, np.ones((points.shape[0], 1))])
+    points_warp = np.dot(pts_pad, matrix.T)
+    return points_warp[:, :-1]
+
+
 def estimate_affine_transform(points_0, points_1):
     """ estimate Affine transformations and warp particular points sets
     to the other coordinate frame
 
-    :param ndarray points_0: set of points
-    :param ndarray points_1: set of points
-    :return (ndarray, ndarray, ndarray): transform. matrix and warped point sets
+    :param ndarray points_0: set of points of shape (N, 2)
+    :param ndarray points_1: set of points of shape (N, 2)
+    :return (ndarray, ndarray, ndarray, ndarray): transform. matrix & inverse
+        and warped point sets
 
     >>> pts0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.]], dtype=int)
     >>> pts1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.]])
-    >>> matrix, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
-    >>> np.round(matrix, 2)
-    array([[ -1.,   0.,  -0.],
-           [  0.,   1.,  -0.],
-           [ 65., -60.,   1.]])
+    >>> mx, mx_inv, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
+    >>> np.round(mx, 2)
+    array([[ -1.,   0.,  65.],
+           [  0.,   1., -60.],
+           [  0.,   0.,   1.]])
     >>> pts0_w
     array([[ 61.,  56.],
            [ 61., -56.],
@@ -290,22 +309,20 @@ def estimate_affine_transform(points_0, points_1):
     # SEE: https://stackoverflow.com/questions/20546182
     nb = min(len(points_0), len(points_1))
     # Pad the data with ones, so that our transformation can do translations
-    _fn_pad = lambda pts: np.hstack([pts, np.ones((pts.shape[0], 1))])
-    _fn_unpad = lambda pts: pts[:, :-1]
-    x = _fn_pad(points_0[:nb])
-    y = _fn_pad(points_1[:nb])
+    x = np.hstack([points_0[:nb], np.ones((nb, 1))])
+    y = np.hstack([points_1[:nb], np.ones((nb, 1))])
 
     # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix, _, _, _ = np.linalg.lstsq(x, y, rcond=-1)
+    matrix = np.linalg.lstsq(x, y, rcond=-1)[0].T
+    matrix[-1, :] = [0, 0, 1]
+    # invert the transformtion matrix
+    matrix_inv = np.linalg.pinv(matrix.T).T
+    matrix_inv[-1, :] = [0, 0, 1]
 
-    _fn_transform = lambda pts: _fn_unpad(np.dot(_fn_pad(pts), matrix))
-    points_0_warp = _fn_transform(points_0)
+    points_0_warp = transform_points(points_0, matrix)
+    points_1_warp = transform_points(points_1, matrix_inv)
 
-    matrix_inv = np.linalg.pinv(matrix)
-    _fn_transform_inv = lambda pts: _fn_unpad(np.dot(_fn_pad(pts), matrix_inv))
-    points_1_warp = _fn_transform_inv(points_1)
-
-    return matrix, points_0_warp, points_1_warp
+    return matrix, matrix_inv, points_0_warp, points_1_warp
 
 
 def estimate_landmark_outliers(points_0, points_1, std_coef=3):
@@ -327,7 +344,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     array([  1.02,  16.78,  10.29,   5.47,   6.88,  18.52,  20.94,  68.96])
     """
     nb = min(len(points_0), len(points_1))
-    _, points_0w, _ = estimate_affine_transform(points_0[:nb], points_1[:nb])
+    _, _, points_0w, _ = estimate_affine_transform(points_0[:nb], points_1[:nb])
     err = np.sqrt(np.sum((points_1[:nb] - points_0w) ** 2, axis=1))
     norm = np.std(err) * std_coef
     out = (err > norm)
@@ -367,9 +384,9 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
     69.0189...
     """
     if isinstance(landmarks_ref, pd.DataFrame):
-        landmarks_ref = landmarks_ref[['X', 'Y']].values
+        landmarks_ref = landmarks_ref[list(LANDMARK_COORDS)].values
     if isinstance(landmarks_in, pd.DataFrame):
-        landmarks_in = landmarks_in[['X', 'Y']].values
+        landmarks_in = landmarks_in[list(LANDMARK_COORDS)].values
 
     if use_affine:
         _, err = estimate_landmark_outliers(landmarks_ref, landmarks_in)
@@ -452,7 +469,7 @@ def create_consensus_landmarks(path_annots, equal_size=True):
 def create_figure(im_size, max_fig_size=FIGURE_SIZE):
     """ create a figure proportional to image size with maximal size in inches
 
-    :param (int, int) im_size: image size in pixels
+    :param (int, int)|(float, float) im_size: image size in pixels
     :param float max_fig_size:  maximal figure size in inches
     :return Figure, Axis:
     """
@@ -478,10 +495,10 @@ def format_figure(fig, ax, im_size, landmarks):
     >>> lnds = np.random.random((25, 2)) * 100
     >>> fig = format_figure(fig, ax, (150, 200), lnds)
     """
-    ax.set_xlim([min(0, np.min(landmarks[1])),
-                 max(im_size[1], np.max(landmarks[1]))])
-    ax.set_ylim([max(im_size[0], np.max(landmarks[0])),
-                 min(0, np.min(landmarks[0]))])
+    ax.set_xlim([min(0, np.min(landmarks[:, 0])),
+                 max(im_size[1], np.max(landmarks[:, 0]))])
+    ax.set_ylim([max(im_size[0], np.max(landmarks[:, 1])),
+                 min(0, np.min(landmarks[:, 1]))])
     fig.tight_layout()
     return fig
 
@@ -501,13 +518,13 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     >>> fig = figure_image_landmarks(lnds, img)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
-    >>> df_lnds = pd.DataFrame(lnds, columns=['X', 'Y'])
+    >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)
     >>> fig = figure_image_landmarks(df_lnds, None)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     """
     if isinstance(landmarks, pd.DataFrame):
-        landmarks = landmarks[['X', 'Y']].values
+        landmarks = landmarks[list(LANDMARK_COORDS)].values
     if image is None:
         image = np.zeros(np.max(landmarks, axis=0) + 25)
 
@@ -542,7 +559,7 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     >>> fig = figure_pair_images_landmarks((lnds, lnds + 5), (img, img))
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
-    >>> df_lnds = pd.DataFrame(lnds, columns=['X', 'Y'])
+    >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)
     >>> fig = figure_pair_images_landmarks((df_lnds, df_lnds), (img, None))
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
@@ -552,9 +569,12 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
         % (len(pair_landmarks), len(pair_images))
     pair_landmarks = list(pair_landmarks)
     pair_images = list(pair_images)
+    nb_lnds = min(len(lnds) for lnds in pair_landmarks)
     for i, landmarks in enumerate(pair_landmarks):
         if isinstance(landmarks, pd.DataFrame):
-            pair_landmarks[i] = landmarks[['X', 'Y']].values
+            pair_landmarks[i] = landmarks[list(LANDMARK_COORDS)].values
+        # filter only the common landmarks
+        pair_landmarks[i] = pair_landmarks[i][:nb_lnds]
     for i, image in enumerate(pair_images):
         if image is None:
             pair_images[i] = np.zeros(np.max(pair_landmarks[i], axis=0) + 25)
@@ -586,10 +606,7 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
         ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')
 
     ax.legend()
-
-    fig = format_figure(fig, ax, im_size, ([lnds[0] for lnds in pair_landmarks],
-                                           [lnds[1] for lnds in pair_landmarks]))
-
+    fig = format_figure(fig, ax, im_size, np.vstack(pair_landmarks))
     return fig
 
 

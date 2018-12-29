@@ -24,9 +24,10 @@ import argparse
 
 import matplotlib
 if os.environ.get('DISPLAY', '') == '':
-    logging.warning('No display found. Using non-interactive Agg backend.')
+    print('No display found. Using non-interactive Agg backend.')
     matplotlib.use('Agg')
 
+from PIL import Image
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -38,7 +39,7 @@ except ImportError:
     OPENCV = False
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
-from handlers.utilities import NB_THREADS, SCALES
+from handlers.utilities import NB_THREADS, SCALES, LANDMARK_COORDS
 from handlers.utilities import (
     assert_paths, load_image, find_images, collect_triple_dir,
     wrap_execute_parallel, estimate_affine_transform,
@@ -47,6 +48,10 @@ from handlers.utilities import (
 
 NAME_FIGURE_PAIR = 'PAIR___%s___AND___%s.pdf'
 NAME_FIGURE_PAIR_WARPED = 'PAIR___%s___AND___%s___WARPED.pdf'
+# ERROR:root:error: Image size (... pixels) exceeds limit of ... pixels,
+# could be decompression bomb DOS attack.
+# SEE: https://gitlab.mister-muffin.de/josch/img2pdf/issues/42
+Image.MAX_IMAGE_PIXELS = None
 
 
 def arg_parse_params():
@@ -85,10 +90,11 @@ def load_image_landmarks(lnds_img_pair):
 
 def warp_affine(img1, img2, lnd1, lnd2):
     nb = min(len(lnd1), len(lnd2))
-    pts1, pts2 = lnd1[['X', 'Y']].values[:nb], lnd2[['X', 'Y']].values[:nb]
-    matrix, _, pts2_warp = estimate_affine_transform(pts1, pts2)
-    lnd2_warp = pd.DataFrame(pts2_warp, columns=['X', 'Y'])
-    matrix_inv = np.linalg.pinv(matrix).T[:2, :3].astype(np.float64)
+    pts1 = lnd1[list(LANDMARK_COORDS)].values[:nb]
+    pts2 = lnd2[list(LANDMARK_COORDS)].values[:nb]
+    _, matrix_inv, _, pts2_warp = estimate_affine_transform(pts1, pts2)
+    lnd2_warp = pd.DataFrame(pts2_warp, columns=LANDMARK_COORDS)
+    matrix_inv = matrix_inv[:2, :3].astype(np.float64)
     img2_warp = cv.warpAffine(img2, matrix_inv, img1.shape[:2][::-1])
     return img2_warp, lnd2_warp
 
@@ -161,7 +167,9 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
     if not coll_dirs:
         logging.info('No sub-folders collected.')
         return 0
-    logging.info('Collected sub-folder: %i', len(coll_dirs))
+    lnds_dirs = sorted([cd['landmarks'] for cd in coll_dirs])
+    logging.info('Collected %i sub-folder: \n%s', len(coll_dirs),
+                 '\n'.join(lnds_dirs))
 
     counts = list(wrap_execute_parallel(
         export_visual_set_scale, coll_dirs, nb_jobs=nb_jobs,

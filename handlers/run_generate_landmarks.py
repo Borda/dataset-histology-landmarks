@@ -11,6 +11,11 @@ EXAMPLE
 -------
 >> python run_generate_landmarks.py -a annotations -d dataset
 
+>> python handlers/run_generate_landmarks.py \
+    -a /datagrid/Medical/dataset_ANHIR/landmarks_annot \
+    -d /datagrid/Medical/dataset_ANHIR/landmarks_all \
+    --scales 2 5 10 15 20 25 50 100
+
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
