@@ -30,7 +30,7 @@ before_install:
 install:
   - sudo apt-get install python-opencv
   - pip install -r requirements.txt
-  - pip install coverage pytest pytest-cov codecov codacy-coverage flake8
+  - pip install -U coverage pytest pytest-cov codecov codacy-coverage flake8
   # code coverage tool
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
   - chmod +x ./cc-test-reporter

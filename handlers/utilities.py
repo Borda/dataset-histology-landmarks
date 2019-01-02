@@ -35,9 +35,9 @@ LANDMARK_COORDS = ('X', 'Y')
 def update_path(path, max_depth=5):
     """ bobble up to find a particular path
 
-    :param str path:
-    :param int max_depth:
-    :return str:
+    :param str path: original path
+    :param int max_depth: max depth of bobble up
+    :return str: updated path
 
     >>> os.path.isdir(update_path('handlers'))
     True
@@ -76,6 +76,12 @@ def assert_paths(args):
 
 
 def list_sub_folders(path_folder, name='*'):
+    """ list all sub folders with particular name pattern
+
+    :param str path_folder: path to a particular folder
+    :param str name: name pattern
+    :return [str]:
+    """
     sub_dirs = sorted([p for p in glob.glob(os.path.join(path_folder, name))
                        if os.path.isdir(p)])
     return sub_dirs
@@ -143,7 +149,7 @@ def parse_path_user_scale(path):
     """ from given path with annotation parse user name and scale
 
     :param str path: path to the user folder
-    :return (str, int):
+    :return (str, int): user-name and scale
 
     >>> parse_path_user_scale('user-KO_scale-.5pc')
     ('', nan)
@@ -154,8 +160,8 @@ def parse_path_user_scale(path):
     >>> parse_path_user_scale('sample/path/user-ck6_scale-25pc')
     ('ck6', 25)
     """
-    path = os.path.basename(path)
-    obj = re.match(REEXP_FOLDER_ANNOT, path)
+    name = os.path.basename(path)
+    obj = re.match(REEXP_FOLDER_ANNOT, name)
     if obj is None:
         return '', np.nan
     user, scale = obj.groups()
@@ -168,7 +174,7 @@ def parse_path_scale(path):
     """ from given path with annotation parse scale
 
     :param str path: path to the user folder
-    :return int:
+    :return int: scale
 
     >>> parse_path_scale('scale-.1pc')
     nan
@@ -355,10 +361,10 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
                                 im_size=None):
     """ compute statistic on errors between reference and sensed landmarks
 
-    :param ndarray landmarks_ref:
-    :param ndarray landmarks_in:
-    :param bool use_affine:
-    :param im_size:
+    :param ndarray landmarks_ref: reference landmarks of shape (N, 2)
+    :param ndarray landmarks_in: input landmarks of shape (N, 2)
+    :param bool use_affine: estimate outlier after affine warping
+    :param (int, int)|None im_size: image size
     :return:
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
@@ -485,8 +491,8 @@ def format_figure(fig, ax, im_size, landmarks):
     * use tight layout
     * set ranges according to the image
 
-    :param obj fig: figure
-    :param obj ax: axis
+    :param obj fig: figure instance
+    :param obj ax: figure axis
     :param (int, int) im_size: image size in pixels
     :param ndarray landmarks: landmarks
     :return Figure:
@@ -508,7 +514,7 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
 
     :param ndarray landmarks: landmark coordinates
     :param ndarray image: 2D image
-    :param int max_fig_size:
+    :param int max_fig_size: maximal figure ise in any dimension
     :return Figure:
 
     >>> import matplotlib
@@ -549,7 +555,7 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     :param (ndarray) pair_landmarks: set of landmark coordinates
     :param (ndarray) pair_images: set of 2D image
     :param [str] names: names
-    :param int max_fig_size:
+    :param int max_fig_size: maximal figure ise in any dimension
     :return Figure:
 
     >>> import matplotlib
@@ -635,8 +641,8 @@ def imread(path_img):
     to suppress PIL warning about - DecompressionBombWarning:
         exceeds limit of ... pixels, could be decompression bomb DOS attack
 
-    :param str path_img:
-    :return ndarray|None:
+    :param str path_img: path to the image
+    :return ndarray|None: image
     """
     try:
         return plt.imread(path_img)
@@ -674,21 +680,29 @@ def load_image(img_path):
 
 
 def get_file_ext(path_file):
+    """ extract file extension from a path
+
+    :param str path_file: path to a file
+    :return str: extension
+    """
     return os.path.splitext(os.path.basename(path_file))[-1]
 
 
 def find_images(path_folder, name_file):
     """ find find images in particular folder with given file name
 
-    :param str path_folder:
-    :param str name_file:
-    :return [str]:
+    :param str path_folder: path to the particular folder
+    :param str name_file: image name without extension
+    :return [str]: image paths
 
     >>> path_dir = update_path(os.path.join('dataset', 'lung-lesion_3', 'scale-5pc'))
     >>> find_images(path_dir, '29-041-Izd2-w35-Cc10-5-les3')  # doctest: +ELLIPSIS
     ['...dataset/lung-lesion_3/scale-5pc/29-041-Izd2-w35-Cc10-5-les3.jpg']
+    >>> find_images(path_dir, '29-041-Izd2-w35-Cc10-5-les3.png')  # doctest: +ELLIPSIS
+    ['...dataset/lung-lesion_3/scale-5pc/29-041-Izd2-w35-Cc10-5-les3.jpg']
     """
     assert os.path.isdir(path_folder), 'missing folder: %s' % path_folder
+    name_file = os.path.splitext(name_file)[0]
     paths_img = [p for p in glob.glob(os.path.join(path_folder, name_file + '.*'))
                  if get_file_ext(p) in IMAGE_EXT]
     return sorted(paths_img)
@@ -700,7 +714,7 @@ def find_image_full_size(path_dataset, name_set, name_image):
     :param str path_dataset: path to the image dataset
     :param str name_set: name of particular tissue
     :param str name_image: image name - stain
-    :return (int, int):
+    :return (int, int): image size
 
     >>> find_image_full_size(update_path('dataset'), 'lung-lesion_3',
     ...                      '29-041-Izd2-w35-He-les3')
