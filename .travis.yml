@@ -37,8 +37,9 @@ install:
 
 before_script:
   - mkdir output
-  - gcc --version ; python --version ; pip --version ; pwd ; ls -l
+  - python --version ; pwd ; ls -l
   - ./cc-test-reporter before-build
+  - pip --version ; pip freeze
 
 script:
 #  - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=handlers  # --ignore-files=*.ijm

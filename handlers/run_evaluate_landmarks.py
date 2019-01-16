@@ -57,6 +57,13 @@ def arg_parse_params():
 
 
 def compute_statistic(path_user, path_refs, path_dataset=None):
+    """ aggregate statistics over all his annotations
+
+    :param str path_user:
+    :param [str] path_refs:
+    :param str path_dataset:
+    :return [{}]: list of stat. dictionaries
+    """
     lnds_user, _ = create_consensus_landmarks([path_user])
     lnds_refs, _ = create_consensus_landmarks(path_refs)
 
@@ -78,6 +85,14 @@ def compute_statistic(path_user, path_refs, path_dataset=None):
 
 
 def evaluate_user(user_name, path_annots, path_out, path_dataset=None):
+    """ evaluate single user statistic against consensus
+
+    :param str user_name:
+    :param str path_annots:
+    :param str path_out:
+    :param str path_dataset:
+    :return int: processed items
+    """
     tissue_sets = list_sub_folders(path_annots)
     stats = []
     for p_set in tissue_sets:
@@ -115,8 +130,7 @@ def main(path_annots, path_dataset, path_output, nb_jobs=NB_THREADS):
     _evaluate_user = partial(evaluate_user, path_annots=path_annots,
                              path_dataset=path_dataset, path_out=path_output)
     counts = list(wrap_execute_parallel(
-        _evaluate_user, user_names, nb_jobs=nb_jobs,
-        desc='evaluate @%i-threads' % nb_jobs))
+        _evaluate_user, user_names, nb_jobs=nb_jobs, desc='evaluate'))
     logging.info('Created %i statistics.', sum(counts))
     return counts
 

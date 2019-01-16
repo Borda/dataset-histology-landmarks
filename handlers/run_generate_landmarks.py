@@ -62,6 +62,12 @@ def arg_parse_params():
 
 
 def generate_consensus_landmarks(path_set, path_dataset):
+    """ generate consensus landmarks for a particular image/landmark set
+
+    :param str path_set: path to the set with annotations
+    :param str path_dataset: output dataset path (root)
+    :return {str: int}:
+    """
     path_annots = list_sub_folders(path_set, '*_scale-*pc')
     logging.debug('>> found annotations: %i', len(path_annots))
 
@@ -77,17 +83,29 @@ def generate_consensus_landmarks(path_set, path_dataset):
 
 def dataset_generate_landmarks(path_annots, path_dataset,
                                nb_jobs=NB_THREADS):
+    """ generate consensus landmarks in full scale (100%)
+
+    :param str path_annots: path to folder with annotations
+    :param str path_dataset: output dataset path
+    :param nb_jobs: run parallel jobs
+    :return [int]:
+    """
     list_sets = list_sub_folders(path_annots)
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
     counts = list(wrap_execute_parallel(
-        _wrap_lnds, sorted(list_sets), nb_jobs=nb_jobs,
-        desc='consensus landmarks @%i-threads' % nb_jobs))
+        _wrap_lnds, sorted(list_sets), nb_jobs=nb_jobs, desc='consensus landmarks'))
     return counts
 
 
 def scale_set_landmarks(path_set, scales=SCALES):
+    """ scale given set with landmarks to particular scales
+
+    :param str path_set: path to image/landmark set
+    :param [int] scales: selected output scales
+    :return {str: int}: collection of lengths
+    """
     logging.debug('> processing: %s', path_set)
     path_scale100 = os.path.join(path_set, TEMPLATE_FOLDER_SCALE % 100)
     if not os.path.isdir(path_scale100):
@@ -113,13 +131,19 @@ def scale_set_landmarks(path_set, scales=SCALES):
 
 
 def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
+    """" scale whole dataset
+
+    :param str path_dataset:
+    :param [int] scales: selected output scales
+    :param nb_jobs: run parallel jobs
+    :return [int]:
+    """
     list_sets = list_sub_folders(path_dataset)
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_scale = partial(scale_set_landmarks, scales=scales)
     counts = list(wrap_execute_parallel(
-        _wrap_scale, sorted(list_sets), nb_jobs=nb_jobs,
-        desc='scaling sets @%i-threads' % nb_jobs))
+        _wrap_scale, sorted(list_sets), nb_jobs=nb_jobs, desc='scaling sets'))
     return counts
 
 

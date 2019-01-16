@@ -35,11 +35,11 @@ try:
     import cv2 as cv
     OPENCV = True
 except ImportError:
-    logging.exception('Missing OpenCV, no image warping will be performed.')
+    print('Missing OpenCV, no image warping will be performed.')
     OPENCV = False
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
-from handlers.utilities import NB_THREADS, SCALES, LANDMARK_COORDS
+from handlers.utilities import NB_THREADS, LANDMARK_COORDS
 from handlers.utilities import (
     assert_paths, load_image, find_images, collect_triple_dir,
     wrap_execute_parallel, estimate_affine_transform,
@@ -71,7 +71,7 @@ def arg_parse_params():
                         help='path to the output directory - visualisation',
                         default='output')
     parser.add_argument('--scales', type=int, required=False, nargs='*',
-                        help='select scales for visualization', default=SCALES)
+                        help='select scales for visualization', default=None)
     parser.add_argument('--nb_jobs', type=int, required=False, default=NB_THREADS,
                         help='number of processes in parallel')
     args = vars(parser.parse_args())
@@ -81,14 +81,28 @@ def arg_parse_params():
 
 
 def load_image_landmarks(lnds_img_pair):
+    """ load image and related landmarks
+
+    :param (str, str) lnds_img_pair: tuple with paths
+    :return (str, str, ndarray, ndarray): image folder and name, landmarks and image
+    """
     p_lnds, p_img = lnds_img_pair
     name = os.path.splitext(os.path.basename(p_img))[0]
     lnd = pd.read_csv(p_lnds)
     img = load_image(p_img)
-    return name, lnd, img
+    folder = os.path.basename(os.path.dirname(p_lnds))
+    return folder, name, lnd, img
 
 
 def warp_affine(img1, img2, lnd1, lnd2):
+    """ estimate an affine transform and perform image and landmarks warping
+
+    :param ndarray img1: reference image
+    :param ndarray img2: moving landmarks
+    :param ndarray lnd1: reference image
+    :param ndarray lnd2: moving landmarks
+    :return (ndarray, ndarray): moving image and landmarks warped to reference
+    """
     nb = min(len(lnd1), len(lnd2))
     pts1 = lnd1[list(LANDMARK_COORDS)].values[:nb]
     pts2 = lnd2[list(LANDMARK_COORDS)].values[:nb]
@@ -100,8 +114,16 @@ def warp_affine(img1, img2, lnd1, lnd2):
 
 
 def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
-    name1, lnd1, img1 = load_image_landmarks(lnds_img_pair1)
-    name2, lnd2, img2 = load_image_landmarks(lnds_img_pair2)
+    """ export and visualise image/landmarks pair
+
+    :param (str, str) lnds_img_pair1:
+    :param (str, str) lnds_img_pair2:
+    :param path_out: output folder
+    """
+    folder1, name1, lnd1, img1 = load_image_landmarks(lnds_img_pair1)
+    folder2, name2, lnd2, img2 = load_image_landmarks(lnds_img_pair2)
+    # select the longer name
+    folder = folder1 if len(folder1) > len(folder2) else folder2
     if img1 is None or img2 is None:
         logging.warning('Fail to load one of required images.')
         return
@@ -111,16 +133,26 @@ def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
     fig.savefig(os.path.join(path_out, NAME_FIGURE_PAIR % (name1, name2)))
     plt.close(fig)
 
-    if OPENCV:
+    if not OPENCV:
+        return
+    try:
         img2_warp, lnd2_warp = warp_affine(img1, img2, lnd1, lnd2)
         del img2, lnd2
         fig = figure_pair_images_landmarks((lnd1, lnd2_warp), (img1, img2_warp),
                                            names=(name1, name2 + ' [WARPED AFFINE]'))
         fig.savefig(os.path.join(path_out, NAME_FIGURE_PAIR_WARPED % (name1, name2)))
         plt.close(fig)
+    except Exception:
+        logging.exception('Fail warping for "%s" and "%s" in "%s".',
+                          name1, name2, folder)
 
 
 def export_visual_set_scale(d_paths):
+    """ export, visualise given set in particular scale
+
+    :param {str: str} d_paths: dictionary with path patterns
+    :return int: number of processed items
+    """
     list_lnds = sorted(glob.glob(os.path.join(d_paths['landmarks'], '*.csv')))
     list_lnds_imgs = []
     # fined relevant images to the given landmarks
@@ -172,8 +204,7 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
                  '\n'.join(lnds_dirs))
 
     counts = list(wrap_execute_parallel(
-        export_visual_set_scale, coll_dirs, nb_jobs=nb_jobs,
-        desc='visualise @%i-threads' % nb_jobs))
+        export_visual_set_scale, coll_dirs, nb_jobs=nb_jobs, desc='visualise'))
     logging.info('Performed %i visualisations', sum(counts))
     return counts
 
