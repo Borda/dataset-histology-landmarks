@@ -549,7 +549,7 @@ def figure_image_landmarks(landmarks, image, landmarks2=None, lnds2_name='',
     if landmarks2 is not None and isinstance(landmarks2, pd.DataFrame):
         landmarks2 = landmarks2[list(LANDMARK_COORDS)].values
     if image is None:
-        image = np.zeros(np.max(landmarks, axis=0) + 25)
+        image = np.zeros(np.max(landmarks, axis=0).astype(int) + 25)
 
     fig, ax = create_figure(image.shape[:2], max_fig_size)
 

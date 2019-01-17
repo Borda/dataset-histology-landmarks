@@ -30,6 +30,7 @@ def test_00_evaluate_landmarks():
     params = {'path_annots': PATH_ANNOTATIONS,
               'path_dataset': None,
               'path_output': PATH_OUTPUT,
+              'visual': True,
               'nb_jobs': 1}  # coverage is not able to track in parallelism
     counts = r_eval.main(**params)
     assert np.sum(counts) > 0, 'nothing evaluated'
