@@ -70,7 +70,7 @@ def arg_parse_params():
     parser.add_argument('--nb_jobs', type=int, required=False, default=NB_THREADS,
                         help='number of processes in parallel')
     args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %s', repr(args))
+    logging.info('ARG PARAMETERS: \n %r', args)
     args = assert_paths(args)
     return args
 

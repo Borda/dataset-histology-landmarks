@@ -421,7 +421,7 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
         landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
         # assuming that the offset is symmetric on all sides
         im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
-        logging.debug('estimated image size from landmarks: %s', repr(im_size))
+        logging.debug('estimated image size from landmarks: %r', im_size)
         tp = 'estimated'
     else:
         tp = 'true'

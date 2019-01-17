@@ -56,7 +56,7 @@ def arg_parse_params():
                         help='number of processes in parallel',
                         default=NB_THREADS)
     args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %s', repr(args))
+    logging.info('ARG PARAMETERS: \n %r', args)
     args = assert_paths(args)
     return args
 

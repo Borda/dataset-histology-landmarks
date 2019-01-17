@@ -63,7 +63,7 @@ def arg_parse_params():
                         help='number of processes in parallel',
                         default=NB_THREADS)
     args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %s', repr(args))
+    logging.info('ARG PARAMETERS: \n %r', args)
     args = assert_paths(args)
     return args
 
@@ -182,7 +182,7 @@ def main(path_annots, path_dataset, path_output, nb_jobs=NB_THREADS, visual=Fals
     logging.info('Collected sub-folder: %i', len(coll_dirs))
     user_names = sorted({parse_path_user_scale(d['landmarks'])[0]
                          for d in coll_dirs})
-    logging.info('Found users: %s', repr(user_names))
+    logging.info('Found users: %r', user_names)
     if len(user_names) < 2:
         logging.info('Not enough user annotations.')
 
