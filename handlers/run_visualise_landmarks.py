@@ -13,7 +13,7 @@ EXAMPLE
     -i /datagrid/Medical/dataset_ANHIR/images_private \
     -o /local/borovec/Data/dataset-ANHIR-visu --nb_jobs 2
 
-Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
+Copyright (C) 2014-2019 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
 import os
@@ -27,7 +27,6 @@ if os.environ.get('DISPLAY', '') == '':
     print('No display found. Using non-interactive Agg backend.')
     matplotlib.use('Agg')
 
-from PIL import Image
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -48,10 +47,6 @@ from handlers.utilities import (
 
 NAME_FIGURE_PAIR = 'PAIR___%s___AND___%s.pdf'
 NAME_FIGURE_PAIR_WARPED = 'PAIR___%s___AND___%s___WARPED.pdf'
-# ERROR:root:error: Image size (... pixels) exceeds limit of ... pixels,
-# could be decompression bomb DOS attack.
-# SEE: https://gitlab.mister-muffin.de/josch/img2pdf/issues/42
-Image.MAX_IMAGE_PIXELS = None
 
 
 def arg_parse_params():

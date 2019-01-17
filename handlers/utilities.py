@@ -1,7 +1,7 @@
 """
 General utils used for this collection of scripts
 
-Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
+Copyright (C) 2014-2019 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
 
@@ -13,6 +13,7 @@ import warnings
 import multiprocessing as mproc
 
 import tqdm
+from PIL import Image
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
@@ -30,6 +31,10 @@ FIGURE_SIZE = 18
 IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
 LANDMARK_COORDS = ('X', 'Y')
+# ERROR:root:error: Image size (... pixels) exceeds limit of ... pixels,
+# could be decompression bomb DOS attack.
+# SEE: https://gitlab.mister-muffin.de/josch/img2pdf/issues/42
+Image.MAX_IMAGE_PIXELS = None
 
 
 def update_path(path, max_depth=5):
@@ -126,6 +131,16 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
                 tqdm_bar.update()
 
 
+def create_folder_path(path_dir):
+    if not os.path.isdir(path_dir):
+        try:
+            os.makedirs(path_dir)
+        except Exception:
+            logging.debug('Make folder "%s" failed and actual status is "%s"',
+                          path_dir, os.path.isdir(path_dir))
+    return path_dir
+
+
 def create_folder(path_base, folder):
     """ create a folder
 
@@ -139,10 +154,7 @@ def create_folder(path_base, folder):
     >>> import shutil
     >>> shutil.rmtree(p, ignore_errors=True)
     """
-    path_folder = os.path.join(path_base, folder)
-    if not os.path.isdir(path_folder):
-        os.mkdir(path_folder)
-    return path_folder
+    return create_folder_path(os.path.join(path_base, folder))
 
 
 def parse_path_user_scale(path):
@@ -509,11 +521,14 @@ def format_figure(fig, ax, im_size, landmarks):
     return fig
 
 
-def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
+def figure_image_landmarks(landmarks, image, landmarks2=None, lnds2_name='',
+                           max_fig_size=FIGURE_SIZE):
     """ create a figure with images and landmarks
 
     :param ndarray landmarks: landmark coordinates
     :param ndarray image: 2D image
+    :param ndarray landmarks2: another set landmark coordinates
+    :param str lnds2_name: name of second annot. set
     :param int max_fig_size: maximal figure ise in any dimension
     :return Figure:
 
@@ -525,12 +540,14 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)
-    >>> fig = figure_image_landmarks(df_lnds, None)
+    >>> fig = figure_image_landmarks(df_lnds, None, df_lnds)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     """
     if isinstance(landmarks, pd.DataFrame):
         landmarks = landmarks[list(LANDMARK_COORDS)].values
+    if landmarks2 is not None and isinstance(landmarks2, pd.DataFrame):
+        landmarks2 = landmarks2[list(LANDMARK_COORDS)].values
     if image is None:
         image = np.zeros(np.max(landmarks, axis=0) + 25)
 
@@ -539,6 +556,15 @@ def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
     ax.imshow(image)
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'go')
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'r.')
+    if landmarks2 is not None:
+        nb_min = min([len(lnd) for lnd in [landmarks, landmarks2]])
+        for (x1, y1), (x2, y2) in zip(landmarks[:nb_min], landmarks2[:nb_min]):
+            ax.plot([x1, x2], [y1, y2], ':', color='k')
+        # draw green background if there are more unpaired points
+        if len(landmarks2) > len(landmarks):
+            ax.plot(landmarks2[len(landmarks):, 0], landmarks2[len(landmarks):, 1], 'go')
+        ax.plot(landmarks2[:, 0], landmarks2[:, 1], 'rx', label=lnds2_name)
+        ax.legend()
 
     for i, lnd in enumerate(landmarks):
         ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')

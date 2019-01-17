@@ -16,7 +16,7 @@ EXAMPLE
     -d /datagrid/Medical/dataset_ANHIR/landmarks_all \
     --scales 2 5 10 15 20 25 50 100
 
-Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
+Copyright (C) 2014-2019 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
 
