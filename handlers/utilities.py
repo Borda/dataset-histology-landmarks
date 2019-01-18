@@ -521,6 +521,18 @@ def format_figure(fig, ax, im_size, landmarks):
     return fig
 
 
+def draw_additional_landmarks(ax, landmarks1, landmarks2, lnds2_name):
+    nb_min = min([len(lnd) for lnd in [landmarks1, landmarks2]])
+    for (x1, y1), (x2, y2) in zip(landmarks1[:nb_min], landmarks2[:nb_min]):
+        ax.plot([x1, x2], [y1, y2], ':', color='k')
+    # draw green background if there are more unpaired points
+    if len(landmarks2) > len(landmarks1):
+        ax.plot(landmarks2[len(landmarks1):, 0], landmarks2[len(landmarks1):, 1],
+                'go')
+    ax.plot(landmarks2[:, 0], landmarks2[:, 1], 'rx', label=lnds2_name)
+    ax.legend()
+
+
 def figure_image_landmarks(landmarks, image, landmarks2=None, lnds2_name='',
                            max_fig_size=FIGURE_SIZE):
     """ create a figure with images and landmarks
@@ -548,28 +560,21 @@ def figure_image_landmarks(landmarks, image, landmarks2=None, lnds2_name='',
         landmarks = landmarks[list(LANDMARK_COORDS)].values
     if landmarks2 is not None and isinstance(landmarks2, pd.DataFrame):
         landmarks2 = landmarks2[list(LANDMARK_COORDS)].values
-    if image is None:
-        image = np.zeros(np.max(landmarks, axis=0).astype(int) + 25)
 
-    fig, ax = create_figure(image.shape[:2], max_fig_size)
+    img_size = image.shape if image is not None else np.max(landmarks, axis=0)
+    fig, ax = create_figure(img_size[:2], max_fig_size)
 
-    ax.imshow(image)
+    if image is not None:
+        ax.imshow(image)
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'go')
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'r.')
     if landmarks2 is not None:
-        nb_min = min([len(lnd) for lnd in [landmarks, landmarks2]])
-        for (x1, y1), (x2, y2) in zip(landmarks[:nb_min], landmarks2[:nb_min]):
-            ax.plot([x1, x2], [y1, y2], ':', color='k')
-        # draw green background if there are more unpaired points
-        if len(landmarks2) > len(landmarks):
-            ax.plot(landmarks2[len(landmarks):, 0], landmarks2[len(landmarks):, 1], 'go')
-        ax.plot(landmarks2[:, 0], landmarks2[:, 1], 'rx', label=lnds2_name)
-        ax.legend()
+        draw_additional_landmarks(ax, landmarks, landmarks2, lnds2_name)
 
     for i, lnd in enumerate(landmarks):
         ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')
 
-    fig = format_figure(fig, ax, image.shape[:2], landmarks)
+    fig = format_figure(fig, ax, img_size[:2], landmarks)
 
     return fig
 

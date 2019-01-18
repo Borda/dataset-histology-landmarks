@@ -68,7 +68,7 @@ def arg_parse_params():
     return args
 
 
-def visual_coannotation(lnds_user, lnds_refs, path_dataset, name_set, name_user_scale,
+def visual_coannotation(lnds_user, lnds_refs, path_dataset, path_user,
                         img_name, path_visu):
     """ visualise the co-annotation
 
@@ -83,6 +83,7 @@ def visual_coannotation(lnds_user, lnds_refs, path_dataset, name_set, name_user_
     :param str|None path_visu: path to output
     :return str: figure path
     """
+    name_set, name_user_scale = path_user.split(os.sep)[-2:]
     user, scale = parse_path_user_scale(name_user_scale)
     folder_scale = TEMPLATE_FOLDER_SCALE % scale
     image = None
@@ -134,7 +135,7 @@ def compute_statistic(path_user, path_refs, path_dataset=None, path_visu=None):
         if path_visu is not None and os.path.isdir(path_visu):
             img_name = os.path.splitext(csv_name)[0]
             visual_coannotation(lnds_user[csv_name], lnds_refs[csv_name], path_dataset,
-                                name_set, name_user_scale, img_name, path_visu)
+                                path_user, img_name, path_visu)
     return list_stats
 
 
