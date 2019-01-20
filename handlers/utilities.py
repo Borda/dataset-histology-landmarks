@@ -479,8 +479,8 @@ def create_consensus_landmarks(path_annots, min_size=False):
         dict_lnds[name] = df
 
     # take the minimal set or landmarks over whole set
-    if min_size and len(dict_lnds) > 0:
-        nb_min = min([len(dict_lnds[n]) for n in dict_lnds])
+    if min_size:
+        nb_min = min([len(dict_lnds[n]) for n in dict_lnds]) if dict_lnds else 0
         dict_lnds = {n: dict_lnds[n][:nb_min] for n in dict_lnds}
 
     return dict_lnds, dict_lens
