@@ -132,6 +132,17 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
 
 
 def create_folder_path(path_dir):
+    """ create a folder
+
+    :param str path_dir: folder path
+    :return str: full path
+
+    >>> p = create_folder_path(os.path.join('.', 'sample-folder'))
+    >>> p
+    './sample-folder'
+    >>> import shutil
+    >>> shutil.rmtree(p, ignore_errors=True)
+    """
     if not os.path.isdir(path_dir):
         try:
             os.makedirs(path_dir)
@@ -139,22 +150,6 @@ def create_folder_path(path_dir):
             logging.debug('Make folder "%s" failed and actual status is "%s"',
                           path_dir, os.path.isdir(path_dir))
     return path_dir
-
-
-def create_folder(path_base, folder):
-    """ create a folder
-
-    :param str path_base: path to the roof of creating folder
-    :param str folder: folder name
-    :return str: full path
-
-    >>> p = create_folder('.', 'sample-folder')
-    >>> p
-    './sample-folder'
-    >>> import shutil
-    >>> shutil.rmtree(p, ignore_errors=True)
-    """
-    return create_folder_path(os.path.join(path_base, folder))
 
 
 def parse_path_user_scale(path):
@@ -309,16 +304,16 @@ def estimate_affine_transform(points_0, points_1):
     >>> pts0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.]], dtype=int)
     >>> pts1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.]])
     >>> mx, mx_inv, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
-    >>> np.round(mx, 2)
+    >>> np.round(mx, 2)  # doctest: +NORMALIZE_WHITESPACE
     array([[ -1.,   0.,  65.],
            [  0.,   1., -60.],
            [  0.,   0.,   1.]])
-    >>> pts0_w
+    >>> pts0_w  # doctest: +NORMALIZE_WHITESPACE
     array([[ 61.,  56.],
            [ 61., -56.],
            [ 39., -56.],
            [ 39.,  56.]])
-    >>> pts1_w
+    >>> pts1_w  # doctest: +NORMALIZE_WHITESPACE
     array([[   4.,  116.],
            [   4.,    4.],
            [  26.,    4.],
@@ -358,7 +353,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     >>> out, err = estimate_landmark_outliers(lnds0, lnds1, std_coef=3)
     >>> out.astype(int)
     array([0, 0, 0, 0, 0, 0, 0, 1])
-    >>> np.round(err, 2)
+    >>> np.round(err, 2)  # doctest: +NORMALIZE_WHITESPACE
     array([  1.02,  16.78,  10.29,   5.47,   6.88,  18.52,  20.94,  68.96])
     """
     nb = min(len(points_0), len(points_1))
@@ -437,7 +432,7 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
     return d_stat
 
 
-def create_consensus_landmarks(path_annots, equal_size=True):
+def create_consensus_landmarks(path_annots, min_size=False):
     """ create a consensus on set of landmarks and return normalised to 100%
 
     :param [str] path_annots: path to CSV landmarks
@@ -460,8 +455,8 @@ def create_consensus_landmarks(path_annots, equal_size=True):
                             'required `<user>_scale-<number>pc` but got %s',
                             os.path.basename(p_annot))
             continue
-        list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
-        for p_csv in list_csv:
+        paths_csv = glob.glob(os.path.join(p_annot, '*.csv'))
+        for p_csv in paths_csv:
             name = os.path.basename(p_csv)
             if name not in dict_list_lnds:
                 dict_list_lnds[name] = []
@@ -477,7 +472,7 @@ def create_consensus_landmarks(path_annots, equal_size=True):
         dict_lnds[name] = df
 
     # take the minimal set or landmarks over whole set
-    if equal_size and len(dict_lnds) > 0:
+    if min_size and len(dict_lnds) > 0:
         nb_min = min([len(dict_lnds[n]) for n in dict_lnds])
         dict_lnds = {n: dict_lnds[n][:nb_min] for n in dict_lnds}
 
@@ -527,8 +522,8 @@ def draw_additional_landmarks(ax, landmarks1, landmarks2, lnds2_name):
         ax.plot([x1, x2], [y1, y2], ':', color='k')
     # draw green background if there are more unpaired points
     if len(landmarks2) > len(landmarks1):
-        ax.plot(landmarks2[len(landmarks1):, 0], landmarks2[len(landmarks1):, 1],
-                'go')
+        lnds_ext = landmarks2[len(landmarks1):]
+        ax.plot(lnds_ext[:, 0], lnds_ext[:, 1], 'go')
     ax.plot(landmarks2[:, 0], landmarks2[:, 1], 'rx', label=lnds2_name)
     ax.legend()
 
@@ -547,8 +542,9 @@ def figure_image_landmarks(landmarks, image, landmarks2=None, lnds2_name='',
     >>> import matplotlib
     >>> np.random.seed(0)
     >>> lnds = np.random.randint(-10, 25, (10, 2))
+    >>> lnds2 = np.random.randint(-10, 25, (15, 2))
     >>> img = np.random.random((20, 30))
-    >>> fig = figure_image_landmarks(lnds, img)
+    >>> fig = figure_image_landmarks(lnds, img, lnds2)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)

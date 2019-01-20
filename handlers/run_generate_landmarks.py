@@ -32,7 +32,7 @@ import pandas as pd
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
 from handlers.utilities import (
-    assert_paths, create_folder, wrap_execute_parallel, list_sub_folders,
+    assert_paths, create_folder_path, wrap_execute_parallel, list_sub_folders,
     create_consensus_landmarks
 )
 
@@ -73,8 +73,9 @@ def generate_consensus_landmarks(path_set, path_dataset):
 
     dict_lnds, dict_lens = create_consensus_landmarks(path_annots)
 
-    path_set = create_folder(path_dataset, os.path.basename(path_set))
-    path_scale = create_folder(path_set, TEMPLATE_FOLDER_SCALE % 100)
+    path_scale = os.path.join(path_dataset, os.path.basename(path_set),
+                              TEMPLATE_FOLDER_SCALE % 100)
+    create_folder_path(path_scale)
     for name in dict_lnds:
         dict_lnds[name].to_csv(os.path.join(path_scale, name))
 
@@ -115,13 +116,10 @@ def scale_set_landmarks(path_set, scales=SCALES):
     logging.debug('>> found landmarks: %i', len(list_csv))
     dict_lnds = {os.path.basename(p): pd.read_csv(p, index_col=0)
                  for p in list_csv}
-    scales = list(scales)
-    if 100 in scales:
-        scales.remove(100)  # drop the base scale
     set_scales = {}
-    for sc in scales:
-        folder_name = TEMPLATE_FOLDER_SCALE % sc
-        path_scale = create_folder(path_set, folder_name)
+    for sc in (sc for sc in scales if sc not in [100]):  # drop the base scale
+        path_scale = os.path.join(path_set, TEMPLATE_FOLDER_SCALE % sc)
+        create_folder_path(path_scale)
         for name in dict_lnds:
             df_scale = dict_lnds[name] * (sc / 100.)
             df_scale.to_csv(os.path.join(path_scale, name))
