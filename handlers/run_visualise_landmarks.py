@@ -40,7 +40,7 @@ except ImportError:
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, LANDMARK_COORDS
 from handlers.utilities import (
-    assert_paths, load_image, find_images, collect_triple_dir,
+    parse_args, load_image, find_images, collect_triple_dir,
     wrap_execute_parallel, estimate_affine_transform,
     figure_pair_images_landmarks, figure_image_landmarks
 )
@@ -49,7 +49,7 @@ NAME_FIGURE_PAIR = 'PAIR___%s___AND___%s.pdf'
 NAME_FIGURE_PAIR_WARPED = 'PAIR___%s___AND___%s___WARPED.pdf'
 
 
-def arg_parse_params():
+def create_arg_parser():
     """ argument parser from cmd
 
     SEE: https://docs.python.org/3/library/argparse.html
@@ -69,10 +69,7 @@ def arg_parse_params():
                         help='select scales for visualization', default=None)
     parser.add_argument('--nb_jobs', type=int, required=False, default=NB_THREADS,
                         help='number of processes in parallel')
-    args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %r', args)
-    args = assert_paths(args)
-    return args
+    return parser
 
 
 def load_image_landmarks(lnds_img_pair):
@@ -208,7 +205,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info('running...')
 
-    params = arg_parse_params()
+    params = parse_args(create_arg_parser())
     main(**params)
 
     logging.info('DONE')

@@ -61,6 +61,13 @@ def update_path(path, max_depth=5):
     return path
 
 
+def parse_args(arg_parser):
+    args = vars(arg_parser.parse_args())
+    logging.info('ARG PARAMETERS: \n %r', args)
+    args = assert_paths(args)
+    return args
+
+
 def assert_paths(args):
     """ check missing paths
 
@@ -436,12 +443,12 @@ def create_consensus_landmarks(path_annots, min_size=False):
     """ create a consensus on set of landmarks and return normalised to 100%
 
     :param [str] path_annots: path to CSV landmarks
-    :param bool equal_size: use only max number of common points, 56 & 65 -> 56
+    :param bool min_size: use only max number of common points, 56 & 65 -> 56
     :return {str: DF}:
 
     >>> folder = './me-KJ_25'
     >>> os.mkdir(folder)
-    >>> create_consensus_landmarks([folder])
+    >>> create_consensus_landmarks([folder], min_size=True)
     ({}, {})
     >>> import shutil
     >>> shutil.rmtree(folder)

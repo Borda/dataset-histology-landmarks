@@ -57,6 +57,12 @@ def test_02_visualise_landmarks():
     assert len([n for n in counts if n > 0]) > 0, 'nothing visualised'
 
 
+def test_arg_parsers():
+    r_eval.create_arg_parser()
+    r_generate.create_arg_parser()
+    r_visual.create_arg_parser()
+
+
 if __name__ == '__main__':
     test_00_evaluate_landmarks()
     test_01_generate_landmarks()

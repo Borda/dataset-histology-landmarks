@@ -32,12 +32,12 @@ import pandas as pd
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
 from handlers.utilities import (
-    assert_paths, create_folder_path, wrap_execute_parallel, list_sub_folders,
+    parse_args, create_folder_path, wrap_execute_parallel, list_sub_folders,
     create_consensus_landmarks
 )
 
 
-def arg_parse_params():
+def create_arg_parser():
     """ argument parser from cmd
 
     SEE: https://docs.python.org/3/library/argparse.html
@@ -55,10 +55,7 @@ def arg_parse_params():
     parser.add_argument('--nb_jobs', type=int, required=False,
                         help='number of processes in parallel',
                         default=NB_THREADS)
-    args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %r', args)
-    args = assert_paths(args)
-    return args
+    return parser
 
 
 def generate_consensus_landmarks(path_set, path_dataset):
@@ -157,7 +154,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info('running...')
 
-    params = arg_parse_params()
+    params = parse_args(create_arg_parser())
     main(**params)
 
     logging.info('DONE')

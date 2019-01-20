@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, TEMPLATE_FOLDER_SCALE
 from handlers.utilities import (
-    assert_paths, find_image_full_size, collect_triple_dir, list_sub_folders,
+    parse_args, find_image_full_size, collect_triple_dir, list_sub_folders,
     wrap_execute_parallel, create_consensus_landmarks, compute_landmarks_statistic,
     parse_path_user_scale, find_images, load_image, figure_image_landmarks,
     create_folder_path
@@ -41,7 +41,7 @@ from handlers.utilities import (
 NAME_FIGURE_COANNOT = 'CO-ANNOTATION___%s.pdf'
 
 
-def arg_parse_params():
+def create_arg_parser():
     """ argument parser from cmd
 
     SEE: https://docs.python.org/3/library/argparse.html
@@ -62,10 +62,7 @@ def arg_parse_params():
     parser.add_argument('--nb_jobs', type=int, required=False,
                         help='number of processes in parallel',
                         default=NB_THREADS)
-    args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %r', args)
-    args = assert_paths(args)
-    return args
+    return parser
 
 
 def visual_coannotation(lnds_user, lnds_refs, path_dataset, path_user,
@@ -200,7 +197,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info('running...')
 
-    params = arg_parse_params()
+    params = parse_args(create_arg_parser())
     main(**params)
 
     logging.info('DONE')
