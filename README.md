@@ -90,19 +90,50 @@ Second, the error of the new annotation should not be significantly larger than 
 
 ## Annotations
 
+### Initial annotation
+
 The annotation is a collection of landmarks placed by several users. 
 The structure is similar to the one used in the dataset with the minor difference that there is user/author "name" and the annotation is made just in a single scale.
 
 ![reconstruction](figures/imagej-image-pair.jpg)
 
 Tutorial how to put landmarks in a set of images step by step:
-1. Open **Fiji**
-2. Load the images. It is optimal to open the complete set. 
-3. Click relevant points (landmarks) in all images.
-4. Export the placed landmarks.
-5. Import the existing landmarks if needed.
+ 1. Open **Fiji / ImageJ**
+ 2. Load all images (e.g., drag & drop from open folder) in the set and determine what structures appear in all images. Sample image set is `lung-lesion_1/scale-25pc/*.jpg` or `mammary-gland_2/scale-25pc/*.jpg` 
+ 3. Start placing landmarks in all images, recommended is to place each landmark in all images fist before the next landmark.
+ 4. You should place between 60-120 points in each image.
+ 5. Export annotation and name the CSV file the same as the images.
+ 6. (Optional) Import the existing landmarks if needed.
 
-Structure of the annotation directory:
+
+### Additional landmark annotation
+
+The goal of this additional annotation is to improve the precision of annotation since it is just human manual annotation which can be inaccurate because of used zoom (scale) and each user may recognise the structure a bit shifted.
+
+**Particular steps:**
+ 1. Just one image pair or all images in the set (use maximal image scale that you can reasonably open on your computer).
+ 2. Load landmarks (not annotation from another user) for the first image in the set and use it as a template.
+ 3. Start placing landmarks in all other images in the same order as the “reference” image, recommended is to place all landmarks in each image before you move to the next image.
+ 4. You should have the same number points as the initial annotation.
+ 5. Export your annotation (not the reference landmarks) and name the CSV file the same as the images.
+
+**Example:** Assume we have set of three images with used stains HE, CD and ER. Open images with HE and CD stains. Then you load landmarks for HE image and perform annotation on CD image and export only the CD annotation. Then do this pair-annotation repetitively until you have annotated all stains in the set. See the following sample scenarios:
+ * Scenario - pairs
+   - open HE -> annotate CD
+   - open CD -> annotate ER
+   - open ER -> annotate HE
+ * Scenario - sequence
+   - open ER -> annotate HE and CD
+   - open CD -> annotate ER
+
+**Note - point ordering:**
+The placed points in the additional annotation have to be in the same order as in ten reference image. Also, while placing the landmarks you have to start with the first point and gradually continue until the last point. (placing less point is also an option even preferably you should reuse all points)
+
+**Note - adding extra points:**
+You can add also additional landmarks but still, you have to place all existing landmarks first and then you can start placing extra points. In such a case, you have to add these points for all images in the set (cannot be done just for an image pair).
+
+
+**Structure of the annotation directory:**
 ```
 **ANNOTATIONS**
  |- [set_name1]
@@ -166,6 +197,10 @@ In the visualization, they are connected by a straight line. Otherwise, the land
 
 ![landmarks-pairs](figures/PAIR___29-041-Izd2-w35-CD31-3-les3___AND___29-041-Izd2-w35-proSPC-4-les3.jpg)
 
+We recommend looking at the warped image pairs (it is generated automatically if you  have installed OpenCV) where an affine transformation between two images was estimated from landmarks and the second image with landmarks was warped to the first image.
+
+![landmarks-pairs-warped](figures/landmarks-overlaps-warped.jpg)
+
 In case you do another annotation for tissue with already existing annotations you should also check your difference to the already existing consensus landmarks makde by other users/experts and are saved in a file.
 Then, you need to focus on landmarks where the standard deviation or the maximal error value exceed a reasonable value.
 ```bash
@@ -174,12 +209,8 @@ python handlers/run_evaluate_landmarks.py \
 ```
 If you find such suspicious annotations, perform a visual inspection as described above.
 
-![landmarks-pairs-warped](figures/landmarks-overlaps-warped.jpg)
-
-We recommend looking at the warped image pairs (it is generated automatically if you  have installed OpenCV) where an affine transformation between two images was estimated from landmarks and the second image with landmarks was warped to the first image.
-
 ---
 
 ## References
 
-J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in 2018 25th IEEE International Conference on Image Processing (ICIP), p. 3368-3372, 2018.
+J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in 2018 25th IEEE International Conference on Image Processing (ICIP), p. 3368-3372, 2018. DOI: [10.1109/ICIP.2018.8451040](https://www.doi.org/10.1109/ICIP.2018.8451040)
