@@ -16,7 +16,7 @@ EXAMPLE
     -d /datagrid/Medical/dataset_ANHIR/landmarks_all \
     --scales 2 5 10 15 20 25 50 100
 
-Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
+Copyright (C) 2014-2019 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
 
@@ -32,12 +32,12 @@ import pandas as pd
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
 from handlers.utilities import (
-    assert_paths, create_folder, wrap_execute_parallel, list_sub_folders,
+    parse_args, create_folder_path, wrap_execute_parallel, list_sub_folders,
     create_consensus_landmarks
 )
 
 
-def arg_parse_params():
+def create_arg_parser():
     """ argument parser from cmd
 
     SEE: https://docs.python.org/3/library/argparse.html
@@ -55,20 +55,24 @@ def arg_parse_params():
     parser.add_argument('--nb_jobs', type=int, required=False,
                         help='number of processes in parallel',
                         default=NB_THREADS)
-    args = vars(parser.parse_args())
-    logging.info('ARG PARAMETERS: \n %s', repr(args))
-    args = assert_paths(args)
-    return args
+    return parser
 
 
 def generate_consensus_landmarks(path_set, path_dataset):
+    """ generate consensus landmarks for a particular image/landmark set
+
+    :param str path_set: path to the set with annotations
+    :param str path_dataset: output dataset path (root)
+    :return {str: int}:
+    """
     path_annots = list_sub_folders(path_set, '*_scale-*pc')
     logging.debug('>> found annotations: %i', len(path_annots))
 
     dict_lnds, dict_lens = create_consensus_landmarks(path_annots)
 
-    path_set = create_folder(path_dataset, os.path.basename(path_set))
-    path_scale = create_folder(path_set, TEMPLATE_FOLDER_SCALE % 100)
+    path_scale = os.path.join(path_dataset, os.path.basename(path_set),
+                              TEMPLATE_FOLDER_SCALE % 100)
+    create_folder_path(path_scale)
     for name in dict_lnds:
         dict_lnds[name].to_csv(os.path.join(path_scale, name))
 
@@ -77,17 +81,29 @@ def generate_consensus_landmarks(path_set, path_dataset):
 
 def dataset_generate_landmarks(path_annots, path_dataset,
                                nb_jobs=NB_THREADS):
+    """ generate consensus landmarks in full scale (100%)
+
+    :param str path_annots: path to folder with annotations
+    :param str path_dataset: output dataset path
+    :param nb_jobs: run parallel jobs
+    :return [int]:
+    """
     list_sets = list_sub_folders(path_annots)
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
     counts = list(wrap_execute_parallel(
-        _wrap_lnds, sorted(list_sets), nb_jobs=nb_jobs,
-        desc='consensus landmarks @%i-threads' % nb_jobs))
+        _wrap_lnds, sorted(list_sets), nb_jobs=nb_jobs, desc='consensus landmarks'))
     return counts
 
 
 def scale_set_landmarks(path_set, scales=SCALES):
+    """ scale given set with landmarks to particular scales
+
+    :param str path_set: path to image/landmark set
+    :param [int] scales: selected output scales
+    :return {str: int}: collection of lengths
+    """
     logging.debug('> processing: %s', path_set)
     path_scale100 = os.path.join(path_set, TEMPLATE_FOLDER_SCALE % 100)
     if not os.path.isdir(path_scale100):
@@ -97,13 +113,10 @@ def scale_set_landmarks(path_set, scales=SCALES):
     logging.debug('>> found landmarks: %i', len(list_csv))
     dict_lnds = {os.path.basename(p): pd.read_csv(p, index_col=0)
                  for p in list_csv}
-    scales = list(scales)
-    if 100 in scales:
-        scales.remove(100)  # drop the base scale
     set_scales = {}
-    for sc in scales:
-        folder_name = TEMPLATE_FOLDER_SCALE % sc
-        path_scale = create_folder(path_set, folder_name)
+    for sc in (sc for sc in scales if sc not in [100]):  # drop the base scale
+        path_scale = os.path.join(path_set, TEMPLATE_FOLDER_SCALE % sc)
+        create_folder_path(path_scale)
         for name in dict_lnds:
             df_scale = dict_lnds[name] * (sc / 100.)
             df_scale.to_csv(os.path.join(path_scale, name))
@@ -113,13 +126,19 @@ def scale_set_landmarks(path_set, scales=SCALES):
 
 
 def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
+    """" scale whole dataset
+
+    :param str path_dataset:
+    :param [int] scales: selected output scales
+    :param nb_jobs: run parallel jobs
+    :return [int]:
+    """
     list_sets = list_sub_folders(path_dataset)
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_scale = partial(scale_set_landmarks, scales=scales)
     counts = list(wrap_execute_parallel(
-        _wrap_scale, sorted(list_sets), nb_jobs=nb_jobs,
-        desc='scaling sets @%i-threads' % nb_jobs))
+        _wrap_scale, sorted(list_sets), nb_jobs=nb_jobs, desc='scaling sets'))
     return counts
 
 
@@ -135,7 +154,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info('running...')
 
-    params = arg_parse_params()
+    params = parse_args(create_arg_parser())
     main(**params)
 
     logging.info('DONE')

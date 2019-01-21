@@ -37,15 +37,16 @@ install:
 
 before_script:
   - mkdir output
-  - gcc --version ; python --version ; pip --version ; pwd ; ls -l
+  - python --version ; pwd ; ls -l
   - ./cc-test-reporter before-build
+  - pip --version ; pip freeze
 
 script:
 #  - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=handlers  # --ignore-files=*.ijm
   - coverage run --source handlers -m py.test handlers -v --doctest-modules --junitxml=pytest_junit.xml
   - flake8 . --ignore=E402,W605,E731 --max-line-length=100
 
-  - python handlers/run_evaluate_landmarks.py -a ./annotations -o ./output
+  - python handlers/run_evaluate_landmarks.py -a ./annotations -o ./output --visual
   - python handlers/run_generate_landmarks.py -a ./annotations -d ./dataset --scales 5
   - python handlers/run_visualise_landmarks.py -l ./dataset -i ./dataset -o ./output
 

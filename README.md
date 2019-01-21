@@ -174,6 +174,10 @@ python handlers/run_evaluate_landmarks.py \
 ```
 If you find such suspicious annotations, perform a visual inspection as described above.
 
+![landmarks-pairs-warped](figures/landmarks-overlaps-warped.jpg)
+
+We recommend looking at the warped image pairs (it is generated automatically if you  have installed OpenCV) where an affine transformation between two images was estimated from landmarks and the second image with landmarks was warped to the first image.
+
 ---
 
 ## References

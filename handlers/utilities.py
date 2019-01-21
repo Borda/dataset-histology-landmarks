@@ -1,7 +1,7 @@
 """
 General utils used for this collection of scripts
 
-Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
+Copyright (C) 2014-2019 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
 
@@ -13,6 +13,7 @@ import warnings
 import multiprocessing as mproc
 
 import tqdm
+from PIL import Image
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
@@ -30,6 +31,10 @@ FIGURE_SIZE = 18
 IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
 LANDMARK_COORDS = ('X', 'Y')
+# ERROR:root:error: Image size (... pixels) exceeds limit of ... pixels,
+# could be decompression bomb DOS attack.
+# SEE: https://gitlab.mister-muffin.de/josch/img2pdf/issues/42
+Image.MAX_IMAGE_PIXELS = None
 
 
 def update_path(path, max_depth=5):
@@ -54,6 +59,13 @@ def update_path(path, max_depth=5):
 
     path = os.path.abspath(path) if os.path.exists(path) else path_in
     return path
+
+
+def parse_args(arg_parser):
+    args = vars(arg_parser.parse_args())
+    logging.info('ARG PARAMETERS: \n %r', args)
+    args = assert_paths(args)
+    return args
 
 
 def assert_paths(args):
@@ -126,23 +138,25 @@ def wrap_execute_parallel(wrap_func, iterate_vals,
                 tqdm_bar.update()
 
 
-def create_folder(path_base, folder):
+def create_folder_path(path_dir):
     """ create a folder
 
-    :param str path_base: path to the roof of creating folder
-    :param str folder: folder name
+    :param str path_dir: folder path
     :return str: full path
 
-    >>> p = create_folder('.', 'sample-folder')
+    >>> p = create_folder_path(os.path.join('.', 'sample-folder'))
     >>> p
     './sample-folder'
     >>> import shutil
     >>> shutil.rmtree(p, ignore_errors=True)
     """
-    path_folder = os.path.join(path_base, folder)
-    if not os.path.isdir(path_folder):
-        os.mkdir(path_folder)
-    return path_folder
+    if not os.path.isdir(path_dir):
+        try:
+            os.makedirs(path_dir)
+        except Exception:
+            logging.debug('Make folder "%s" failed and actual status is "%s"',
+                          path_dir, os.path.isdir(path_dir))
+    return path_dir
 
 
 def parse_path_user_scale(path):
@@ -297,16 +311,16 @@ def estimate_affine_transform(points_0, points_1):
     >>> pts0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.]], dtype=int)
     >>> pts1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.]])
     >>> mx, mx_inv, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
-    >>> np.round(mx, 2)
+    >>> np.round(mx, 2)  # doctest: +NORMALIZE_WHITESPACE
     array([[ -1.,   0.,  65.],
            [  0.,   1., -60.],
            [  0.,   0.,   1.]])
-    >>> pts0_w
+    >>> pts0_w  # doctest: +NORMALIZE_WHITESPACE
     array([[ 61.,  56.],
            [ 61., -56.],
            [ 39., -56.],
            [ 39.,  56.]])
-    >>> pts1_w
+    >>> pts1_w  # doctest: +NORMALIZE_WHITESPACE
     array([[   4.,  116.],
            [   4.,    4.],
            [  26.,    4.],
@@ -346,7 +360,7 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     >>> out, err = estimate_landmark_outliers(lnds0, lnds1, std_coef=3)
     >>> out.astype(int)
     array([0, 0, 0, 0, 0, 0, 0, 1])
-    >>> np.round(err, 2)
+    >>> np.round(err, 2)  # doctest: +NORMALIZE_WHITESPACE
     array([  1.02,  16.78,  10.29,   5.47,   6.88,  18.52,  20.94,  68.96])
     """
     nb = min(len(points_0), len(points_1))
@@ -409,7 +423,7 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
         landmarks = np.concatenate([landmarks_ref, landmarks_in], axis=0)
         # assuming that the offset is symmetric on all sides
         im_size = (np.max(landmarks, axis=0) + np.min(landmarks, axis=0))
-        logging.debug('estimated image size from landmarks: %s', repr(im_size))
+        logging.debug('estimated image size from landmarks: %r', im_size)
         tp = 'estimated'
     else:
         tp = 'true'
@@ -425,16 +439,16 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
     return d_stat
 
 
-def create_consensus_landmarks(path_annots, equal_size=True):
+def create_consensus_landmarks(path_annots, min_size=False):
     """ create a consensus on set of landmarks and return normalised to 100%
 
     :param [str] path_annots: path to CSV landmarks
-    :param bool equal_size: use only max number of common points, 56 & 65 -> 56
+    :param bool min_size: use only max number of common points, 56 & 65 -> 56
     :return {str: DF}:
 
     >>> folder = './me-KJ_25'
     >>> os.mkdir(folder)
-    >>> create_consensus_landmarks([folder])
+    >>> create_consensus_landmarks([folder], min_size=True)
     ({}, {})
     >>> import shutil
     >>> shutil.rmtree(folder)
@@ -448,8 +462,8 @@ def create_consensus_landmarks(path_annots, equal_size=True):
                             'required `<user>_scale-<number>pc` but got %s',
                             os.path.basename(p_annot))
             continue
-        list_csv = glob.glob(os.path.join(p_annot, '*.csv'))
-        for p_csv in list_csv:
+        paths_csv = glob.glob(os.path.join(p_annot, '*.csv'))
+        for p_csv in paths_csv:
             name = os.path.basename(p_csv)
             if name not in dict_list_lnds:
                 dict_list_lnds[name] = []
@@ -465,8 +479,8 @@ def create_consensus_landmarks(path_annots, equal_size=True):
         dict_lnds[name] = df
 
     # take the minimal set or landmarks over whole set
-    if equal_size and len(dict_lnds) > 0:
-        nb_min = min([len(dict_lnds[n]) for n in dict_lnds])
+    if min_size:
+        nb_min = min([len(dict_lnds[n]) for n in dict_lnds]) if dict_lnds else 0
         dict_lnds = {n: dict_lnds[n][:nb_min] for n in dict_lnds}
 
     return dict_lnds, dict_lens
@@ -509,41 +523,61 @@ def format_figure(fig, ax, im_size, landmarks):
     return fig
 
 
-def figure_image_landmarks(landmarks, image, max_fig_size=FIGURE_SIZE):
+def draw_additional_landmarks(ax, landmarks1, landmarks2, lnds2_name):
+    nb_min = min([len(lnd) for lnd in [landmarks1, landmarks2]])
+    for (x1, y1), (x2, y2) in zip(landmarks1[:nb_min], landmarks2[:nb_min]):
+        ax.plot([x1, x2], [y1, y2], ':', color='k')
+    # draw green background if there are more unpaired points
+    if len(landmarks2) > len(landmarks1):
+        lnds_ext = landmarks2[len(landmarks1):]
+        ax.plot(lnds_ext[:, 0], lnds_ext[:, 1], 'go')
+    ax.plot(landmarks2[:, 0], landmarks2[:, 1], 'rx', label=lnds2_name)
+    ax.legend()
+
+
+def figure_image_landmarks(landmarks, image, landmarks2=None, lnds2_name='',
+                           max_fig_size=FIGURE_SIZE):
     """ create a figure with images and landmarks
 
     :param ndarray landmarks: landmark coordinates
     :param ndarray image: 2D image
+    :param ndarray landmarks2: another set landmark coordinates
+    :param str lnds2_name: name of second annot. set
     :param int max_fig_size: maximal figure ise in any dimension
     :return Figure:
 
     >>> import matplotlib
     >>> np.random.seed(0)
     >>> lnds = np.random.randint(-10, 25, (10, 2))
+    >>> lnds2 = np.random.randint(-10, 25, (15, 2))
     >>> img = np.random.random((20, 30))
-    >>> fig = figure_image_landmarks(lnds, img)
+    >>> fig = figure_image_landmarks(lnds, img, lnds2)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     >>> df_lnds = pd.DataFrame(lnds, columns=LANDMARK_COORDS)
-    >>> fig = figure_image_landmarks(df_lnds, None)
+    >>> fig = figure_image_landmarks(df_lnds, None, df_lnds)
     >>> isinstance(fig, matplotlib.figure.Figure)
     True
     """
     if isinstance(landmarks, pd.DataFrame):
         landmarks = landmarks[list(LANDMARK_COORDS)].values
-    if image is None:
-        image = np.zeros(np.max(landmarks, axis=0) + 25)
+    if landmarks2 is not None and isinstance(landmarks2, pd.DataFrame):
+        landmarks2 = landmarks2[list(LANDMARK_COORDS)].values
 
-    fig, ax = create_figure(image.shape[:2], max_fig_size)
+    img_size = image.shape if image is not None else np.max(landmarks, axis=0)
+    fig, ax = create_figure(img_size[:2], max_fig_size)
 
-    ax.imshow(image)
+    if image is not None:
+        ax.imshow(image)
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'go')
     ax.plot(landmarks[:, 0], landmarks[:, 1], 'r.')
+    if landmarks2 is not None:
+        draw_additional_landmarks(ax, landmarks, landmarks2, lnds2_name)
 
     for i, lnd in enumerate(landmarks):
         ax.text(lnd[0] + 5, lnd[1] + 5, str(i + 1), fontsize=11, color='black')
 
-    fig = format_figure(fig, ax, image.shape[:2], landmarks)
+    fig = format_figure(fig, ax, img_size[:2], landmarks)
 
     return fig
 
