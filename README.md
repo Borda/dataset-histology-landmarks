@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/Borda/dataset-histology-landmarks/branch/master/graph/badge.svg)](https://codecov.io/gh/Borda/dataset-histology-landmarks)
 [![codebeat badge](https://codebeat.co/badges/6c0bfead-09bc-42ed-aa8e-cf49944aaa40)](https://codebeat.co/projects/github-com-borda-dataset-histology-landmarks-master)
 [![Maintainability](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/maintainability)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/test_coverage)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/test_coverage)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/test_coverage)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/test_coverage) [![Join the chat at https://gitter.im/Dataset-histology-landmarks/community](https://badges.gitter.im/Dataset-histology-landmarks/community.svg)](https://gitter.im/Dataset-histology-landmarks/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
 **Dataset: landmarks for registration of [CIMA histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**
