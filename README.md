@@ -6,8 +6,9 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/maintainability)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/test_coverage)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/test_coverage)
 
+Feel free to use following communication channel  [![Join the chat at https://gitter.im/Dataset-histology-landmarks/community](https://badges.gitter.im/Dataset-histology-landmarks/community.svg)](https://gitter.im/Dataset-histology-landmarks?utm_source=badge&utm_medium=badge) in any room.
 
-**Dataset: landmarks for registration of [CIMA histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**
+This dataset presents user landmarks annotation for **[CIMA histology images](http://cmp.felk.cvut.cz/~borovji3/?page=dataset)**.
 
 The dataset consists of 2D histological microscopy tissue slices differently stained. 
 The main challenges for the registration of these images are the following: very large image size, appearance differences, and lack of distinctive appearance objects. 
@@ -40,7 +41,7 @@ The structure of the landmarks file is as follows:
 
 The landmarks files are stored in the same folder as their corresponding images and share the same name. 
 ```
-**DATASET**
+DATASET
  |- [set_name1]
  |  |- scale-[number1]pc
  |  |   |- [image_name1].jpg
@@ -135,7 +136,7 @@ You can add also additional landmarks but still, you have to place all existing 
 
 **Structure of the annotation directory:**
 ```
-**ANNOTATIONS**
+ANNOTATIONS
  |- [set_name1]
  |  |- user-[initials1]_scale-[number2]pc
  |  |   |- [image_name1].csv
