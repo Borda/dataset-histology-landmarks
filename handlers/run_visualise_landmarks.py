@@ -101,7 +101,11 @@ def warp_affine(img1, img2, lnd1, lnd2):
     _, matrix_inv, _, pts2_warp = estimate_affine_transform(pts1, pts2)
     lnd2_warp = pd.DataFrame(pts2_warp, columns=LANDMARK_COORDS)
     matrix_inv = matrix_inv[:2, :3].astype(np.float64)
-    img2_warp = cv.warpAffine(img2, matrix_inv, img1.shape[:2][::-1])
+    try:
+        img2_warp = cv.warpAffine(img2, matrix_inv, img1.shape[:2][::-1])
+    except Exception:
+        logging.exception('fail transform for matrix: \n%r', matrix_inv)
+        img2_warp = img1
     return img2_warp, lnd2_warp
 
 

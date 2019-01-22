@@ -26,7 +26,7 @@ This is a work in progress. It would be interesting to have more precise landmar
 
 The landmarks have standard [ImageJ](https://imagej.net/Welcome) structure and coordinate frame. 
 The origin [0, 0] is located in top left corner of the image plane. 
-For handling these landmarks, we provide a simple macro for [importing](annotations/multiPointSet_import.ijm) and another one for [exporting](annotations/multiPointSet_export.ijm).
+For handling these landmarks, we provide a simple macro for [importing](handlers/multiPointSet_import.ijm) and another one for [exporting](handlers/multiPointSet_export.ijm).
 
 The structure of the landmarks file is as follows:
 ```
@@ -214,4 +214,4 @@ If you find such suspicious annotations, perform a visual inspection as describe
 
 ## References
 
-J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in 2018 25th IEEE International Conference on Image Processing (ICIP), p. 3368-3372, 2018. DOI: [10.1109/ICIP.2018.8451040](https://www.doi.org/10.1109/ICIP.2018.8451040)
+J. Borovec, A. Munoz-Barrutia, and J. Kybic, “**Benchmarking of image registration methods for differently stained histological slides**” in 2018 25th IEEE International Conference on Image Processing (ICIP), p. 3368-3372, 2018. [DOI: 10.1109/ICIP.2018.8451040](https://www.doi.org/10.1109/ICIP.2018.8451040)
