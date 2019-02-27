@@ -26,13 +26,14 @@ TEMPLATE_FOLDER_SCALE = r'scale-%dpc'
 REEXP_FOLDER_ANNOT = r'(.\S+)_scale-(\d+)pc'
 REEXP_FOLDER_SCALE = r'\S*scale-(\d+)pc'
 # default figure size for visualisations
-FIGURE_SIZE = 18
+FIGURE_SIZE = 18  # inches
+MAX_IMAGE_SIZE = 5000
 # expected image extensions
 IMAGE_EXT = ('.png', '.jpg', '.jpeg')
 COLORS = 'grbm'
 LANDMARK_COORDS = ('X', 'Y')
 # ERROR:root:error: Image size (... pixels) exceeds limit of ... pixels,
-# could be decompression bomb DOS attack.
+# PIL.Image.DecompressionBombError: could be decompression bomb DOS attack.
 # SEE: https://gitlab.mister-muffin.de/josch/img2pdf/issues/42
 Image.MAX_IMAGE_PIXELS = None
 
@@ -245,7 +246,7 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
     :param str path_out: path for exporting statistic
     :param [{}] coll_dirs: list of already exiting collections
     :param [int] scales: list of allowed scales
-    :param bool with_user: whether required iser info (as annotation)
+    :param bool with_user: whether required insert info (as annotation)
     :return [{}]: list of already collections
 
     >>> coll_dirs, d = collect_triple_dir([update_path('annotations')],
@@ -335,7 +336,7 @@ def estimate_affine_transform(points_0, points_1):
     # Solve the least squares problem X * A = Y to find our transform. matrix A
     matrix = np.linalg.lstsq(x, y, rcond=-1)[0].T
     matrix[-1, :] = [0, 0, 1]
-    # invert the transformtion matrix
+    # invert the transformation matrix
     matrix_inv = np.linalg.pinv(matrix.T).T
     matrix_inv[-1, :] = [0, 0, 1]
 
@@ -769,3 +770,21 @@ def find_image_full_size(path_dataset, name_set, name_image):
     im_size = load_image(path_img).shape[:2]
     im_size_full = np.array(im_size) * (100. / scale)
     return tuple(im_size_full.astype(int))
+
+
+def estimate_scaling(images, max_size=MAX_IMAGE_SIZE):
+    """ find scaling for given set of images and maximal image size
+
+    :param [ndarray] images: input images
+    :param float max_size: max image size in any dimension
+    :return float: scaling in range (0, 1)
+
+    >>> estimate_scaling([np.zeros((12000, 8000, 3))])  # doctest: +ELLIPSIS
+    0.4...
+    >>> estimate_scaling([np.zeros((1200, 800, 3))])
+    1.0
+    """
+    sizes = [img.shape[:2] for img in images]
+    max_dim = np.max(sizes)
+    scale = np.round(float(max_size) / max_dim, 1) if max_dim > max_size else 1.
+    return scale

@@ -41,7 +41,7 @@ sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, LANDMARK_COORDS
 from handlers.utilities import (
     parse_args, load_image, find_images, collect_triple_dir,
-    wrap_execute_parallel, estimate_affine_transform,
+    wrap_execute_parallel, estimate_affine_transform, estimate_scaling,
     figure_pair_images_landmarks, figure_image_landmarks
 )
 
@@ -109,17 +109,34 @@ def warp_affine(img1, img2, lnd1, lnd2):
     return img2_warp, lnd2_warp
 
 
+def _scale_large_images_landmarks(images, landmarks):
+    """ scale images and landmarks up to maximal image size
+
+    :param [ndarray] images: list of images
+    :param [ndarray] landmarks: list of landmarks
+    :return ([ndarray], [ndarray]): lists of images and landmarks
+    """
+    if not images or not OPENCV:
+        return images, landmarks
+    scale = estimate_scaling(images)
+    images = [cv.resize(img, None, fx=scale, fy=scale, interpolation=cv.INTER_LINEAR)
+              for img in images]
+    landmarks = [lnds * scale for lnds in landmarks]
+    return images, landmarks
+
+
 def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
     """ export and visualise image/landmarks pair
 
-    :param (str, str) lnds_img_pair1:
-    :param (str, str) lnds_img_pair2:
+    :param (str, str) lnds_img_pair1: path to image and landmarks
+    :param (str, str) lnds_img_pair2: path to image and landmarks
     :param path_out: output folder
     """
     folder1, name1, lnd1, img1 = load_image_landmarks(lnds_img_pair1)
     folder2, name2, lnd2, img2 = load_image_landmarks(lnds_img_pair2)
-    # select the longer name
-    folder = folder1 if len(folder1) > len(folder2) else folder2
+    # scale images and landmarks
+    (img1, img2), (lnd1, lnd2) = _scale_large_images_landmarks((img1, img2), (lnd1, lnd2))
+
     if img1 is None or img2 is None:
         logging.warning('Fail to load one of required images.')
         return
@@ -131,16 +148,13 @@ def export_visual_pairs(lnds_img_pair1, lnds_img_pair2, path_out):
 
     if not OPENCV:
         return
-    try:
-        img2_warp, lnd2_warp = warp_affine(img1, img2, lnd1, lnd2)
-        del img2, lnd2
-        fig = figure_pair_images_landmarks((lnd1, lnd2_warp), (img1, img2_warp),
-                                           names=(name1, name2 + ' [WARPED AFFINE]'))
-        fig.savefig(os.path.join(path_out, NAME_FIGURE_PAIR_WARPED % (name1, name2)))
-        plt.close(fig)
-    except Exception:
-        logging.exception('Fail warping for "%s" and "%s" in "%s".',
-                          name1, name2, folder)
+
+    img2_warp, lnd2_warp = warp_affine(img1, img2, lnd1, lnd2)
+    del img2, lnd2
+    fig = figure_pair_images_landmarks((lnd1, lnd2_warp), (img1, img2_warp),
+                                       names=(name1, name2 + ' [WARPED AFFINE]'))
+    fig.savefig(os.path.join(path_out, NAME_FIGURE_PAIR_WARPED % (name1, name2)))
+    plt.close(fig)
 
 
 def export_visual_set_scale(d_paths):
