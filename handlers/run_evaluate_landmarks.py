@@ -29,14 +29,14 @@ if os.environ.get('DISPLAY', '') == '':
 
 import pandas as pd
 import matplotlib.pyplot as plt
+from birl.utilities.experiments import wrap_execute_sequence
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, TEMPLATE_FOLDER_SCALE
 from handlers.utilities import (
     parse_args, find_image_full_size, collect_triple_dir, list_sub_folders,
-    wrap_execute_parallel, create_consensus_landmarks, compute_landmarks_statistic,
-    parse_path_user_scale, find_images, load_image, figure_image_landmarks,
-    create_folder_path
+    create_consensus_landmarks, compute_landmarks_statistic, parse_path_user_scale,
+    find_images, load_image, figure_image_landmarks, create_folder_path
 )
 NAME_FIGURE_COANNOT = 'CO-ANNOTATION___%s.pdf'
 
@@ -187,8 +187,8 @@ def main(path_annots, path_dataset, path_output, nb_jobs=NB_THREADS, visual=Fals
     _evaluate_user = partial(evaluate_user, path_annots=path_annots,
                              path_dataset=path_dataset, path_out=path_output,
                              visual=visual)
-    counts = list(wrap_execute_parallel(
-        _evaluate_user, user_names, nb_jobs=nb_jobs, desc='evaluate'))
+    counts = list(wrap_execute_sequence(
+        _evaluate_user, user_names, nb_workers=nb_jobs, desc='evaluate'))
     logging.info('Created %i statistics.', sum(counts))
     return counts
 

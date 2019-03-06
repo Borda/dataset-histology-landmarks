@@ -9,14 +9,16 @@ import os
 import re
 import glob
 import logging
-import warnings
 import multiprocessing as mproc
 
-import tqdm
 from PIL import Image
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
+from birl.utilities.data_io import update_path
+from birl.utilities.visualisation import create_figure
+from birl.utilities.dataset import list_sub_folders, parse_path_scale
+from birl.utilities.registration import estimate_affine_transform
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
 SCALES = (5, 10, 20, 25, 50, 100)
@@ -38,30 +40,6 @@ LANDMARK_COORDS = ('X', 'Y')
 Image.MAX_IMAGE_PIXELS = None
 
 
-def update_path(path, max_depth=5):
-    """ bobble up to find a particular path
-
-    :param str path: original path
-    :param int max_depth: max depth of bobble up
-    :return str: updated path
-
-    >>> os.path.isdir(update_path('handlers'))
-    True
-    >>> os.path.isdir(update_path('no-handlers'))
-    False
-    """
-    path_in = path
-    if path.startswith('/'):
-        return path
-    for _ in range(max_depth):
-        if os.path.exists(path):
-            break
-        path = os.path.join('..', path)
-
-    path = os.path.abspath(path) if os.path.exists(path) else path_in
-    return path
-
-
 def parse_args(arg_parser):
     args = vars(arg_parser.parse_args())
     logging.info('ARG PARAMETERS: \n %r', args)
@@ -78,7 +56,7 @@ def assert_paths(args):
     >>> assert_paths({'path_': 'missing'})  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
         ...
-    AssertionError: missing: (path_) "missing"
+    AssertionError: missing: (path_) "..."
     >>> assert_paths({'abc': 123})
     {'abc': 123}
     """
@@ -86,57 +64,6 @@ def assert_paths(args):
         args[k] = update_path(args[k])
         assert os.path.exists(args[k]), 'missing: (%s) "%s"' % (k, args[k])
     return args
-
-
-def list_sub_folders(path_folder, name='*'):
-    """ list all sub folders with particular name pattern
-
-    :param str path_folder: path to a particular folder
-    :param str name: name pattern
-    :return [str]:
-    """
-    sub_dirs = sorted([p for p in glob.glob(os.path.join(path_folder, name))
-                       if os.path.isdir(p)])
-    return sub_dirs
-
-
-def wrap_execute_parallel(wrap_func, iterate_vals,
-                          nb_jobs=NB_THREADS, desc=''):
-    """ wrapper for execution parallel of single thread as for...
-
-    :param wrap_func: function which will be excited in the iterations
-    :param [] iterate_vals: list or iterator which will ide in iterations
-    :param int nb_jobs: number og jobs running in parallel
-    :param str desc: description for the bar
-
-    >>> list(wrap_execute_parallel(lambda pts: pts ** 2, range(5), nb_jobs=1))
-    [0, 1, 4, 9, 16]
-    >>> list(wrap_execute_parallel(sum, [[0, 1]] * 5, nb_jobs=2))
-    [1, 1, 1, 1, 1]
-    """
-    iterate_vals = list(iterate_vals)
-
-    if desc is not None:
-        desc = '%s @%i-threads' % (desc, nb_jobs)
-        tqdm_bar = tqdm.tqdm(total=len(iterate_vals), desc=desc)
-    else:
-        tqdm_bar = None
-
-    if nb_jobs > 1:
-        logging.debug('perform sequential in %i threads', nb_jobs)
-        pool = mproc.Pool(nb_jobs)
-
-        for out in pool.imap_unordered(wrap_func, iterate_vals):
-            yield out
-            if tqdm_bar is not None:
-                tqdm_bar.update()
-        pool.close()
-        pool.join()
-    else:
-        for out in map(wrap_func, iterate_vals):
-            yield out
-            if tqdm_bar is not None:
-                tqdm_bar.update()
 
 
 def create_folder_path(path_dir):
@@ -183,27 +110,6 @@ def parse_path_user_scale(path):
     user = user.replace('user-', '')
     scale = int(scale)
     return user, scale
-
-
-def parse_path_scale(path):
-    """ from given path with annotation parse scale
-
-    :param str path: path to the user folder
-    :return int: scale
-
-    >>> parse_path_scale('scale-.1pc')
-    nan
-    >>> parse_path_scale('user-JB_scale-50pc')
-    50
-    >>> parse_path_scale('scale-10pc')
-    10
-    """
-    path = os.path.basename(path)
-    obj = re.match(REEXP_FOLDER_SCALE, path)
-    if obj is None:
-        return np.nan
-    scale = int(obj.groups()[0])
-    return scale
 
 
 def landmarks_consensus(list_landmarks):
@@ -287,65 +193,6 @@ def collect_triple_dir(paths_landmarks, path_dataset, path_out, coll_dirs=None,
     return coll_dirs, []
 
 
-def transform_points(points, matrix):
-    """ transfrom points according to given transformation matrix
-
-    :param ndarray points: set of points of shape (N, 2)
-    :param ndarray matrix: transformation matrix of shape (3, 3)
-    :return ndarray: warped points  of shape (N, 2)
-    """
-    # Pad the data with ones, so that our transformation can do translations
-    pts_pad = np.hstack([points, np.ones((points.shape[0], 1))])
-    points_warp = np.dot(pts_pad, matrix.T)
-    return points_warp[:, :-1]
-
-
-def estimate_affine_transform(points_0, points_1):
-    """ estimate Affine transformations and warp particular points sets
-    to the other coordinate frame
-
-    :param ndarray points_0: set of points of shape (N, 2)
-    :param ndarray points_1: set of points of shape (N, 2)
-    :return (ndarray, ndarray, ndarray, ndarray): transform. matrix & inverse
-        and warped point sets
-
-    >>> pts0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.]], dtype=int)
-    >>> pts1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.]])
-    >>> mx, mx_inv, pts0_w, pts1_w = estimate_affine_transform(pts0, pts1)
-    >>> np.round(mx, 2)  # doctest: +NORMALIZE_WHITESPACE
-    array([[ -1.,   0.,  65.],
-           [  0.,   1., -60.],
-           [  0.,   0.,   1.]])
-    >>> pts0_w  # doctest: +NORMALIZE_WHITESPACE
-    array([[ 61.,  56.],
-           [ 61., -56.],
-           [ 39., -56.],
-           [ 39.,  56.]])
-    >>> pts1_w  # doctest: +NORMALIZE_WHITESPACE
-    array([[   4.,  116.],
-           [   4.,    4.],
-           [  26.,    4.],
-           [  26.,  116.]])
-    """
-    # SEE: https://stackoverflow.com/questions/20546182
-    nb = min(len(points_0), len(points_1))
-    # Pad the data with ones, so that our transformation can do translations
-    x = np.hstack([points_0[:nb], np.ones((nb, 1))])
-    y = np.hstack([points_1[:nb], np.ones((nb, 1))])
-
-    # Solve the least squares problem X * A = Y to find our transform. matrix A
-    matrix = np.linalg.lstsq(x, y, rcond=-1)[0].T
-    matrix[-1, :] = [0, 0, 1]
-    # invert the transformation matrix
-    matrix_inv = np.linalg.pinv(matrix.T).T
-    matrix_inv[-1, :] = [0, 0, 1]
-
-    points_0_warp = transform_points(points_0, matrix)
-    points_1_warp = transform_points(points_1, matrix_inv)
-
-    return matrix, matrix_inv, points_0_warp, points_1_warp
-
-
 def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     """ estimated landmark outliers after affine alignment
 
@@ -372,34 +219,35 @@ def estimate_landmark_outliers(points_0, points_1, std_coef=3):
     return out, err
 
 
-def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False,
-                                im_size=None):
+def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False, im_size=None):
     """ compute statistic on errors between reference and sensed landmarks
 
     :param ndarray landmarks_ref: reference landmarks of shape (N, 2)
     :param ndarray landmarks_in: input landmarks of shape (N, 2)
     :param bool use_affine: estimate outlier after affine warping
     :param (int, int)|None im_size: image size
-    :return:
+    :return {}: statistic
 
     >>> lnds0 = np.array([[4., 116.], [4., 4.], [26., 4.], [26., 116.],
     ...                   [18, 45], [0, 0], [-12, 8], [1, 1]])
     >>> lnds1 = np.array([[61., 56.], [61., -56.], [39., -56.], [39., 56.],
     ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, use_affine=True)
-    >>> [(k, d_stat[k]) for k in sorted(d_stat)]  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    [('TRE count', 8.0),
-     ('TRE max', 68.9...),
-     ('TRE mean', 18.6...),
-     ('TRE median', 13.5...),
-     ('TRE min', 1.0...),
-     ('TRE std', 21.4...),
-     ('image diagonal (estimated)', 85.7...),
-     ('image size (estimated)', (65, 56)),
-     ('rTRE max', 0.8...),
-     ('rTRE mean', 0.2...),
-     ('rTRE min', 0.01...),
-     ('rTRE std', 0.25...)]
+    >>> import pandas as pd
+    >>> pd.Series(d_stat).sort_index()  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    TRE count                             8
+    TRE max                         68.9...
+    TRE mean                        18.6...
+    TRE median                      13.5...
+    TRE min                         1.02...
+    TRE std                         21.4...
+    image diagonal (estimated)      85.7...
+    image size (estimated)         (65, 56)
+    rTRE max                        0.80...
+    rTRE mean                       0.21...
+    rTRE min                       0.011...
+    rTRE std                        0.25...
+    dtype: object
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, im_size=(150, 175))
     >>> d_stat['TRE mean']  # doctest: +ELLIPSIS
     69.0189...
@@ -485,20 +333,6 @@ def create_consensus_landmarks(path_annots, min_size=False):
         dict_lnds = {n: dict_lnds[n][:nb_min] for n in dict_lnds}
 
     return dict_lnds, dict_lens
-
-
-def create_figure(im_size, max_fig_size=FIGURE_SIZE):
-    """ create a figure proportional to image size with maximal size in inches
-
-    :param (int, int)|(float, float) im_size: image size in pixels
-    :param float max_fig_size:  maximal figure size in inches
-    :return Figure, Axis:
-    """
-    norm_size = np.array(im_size) / float(np.max(im_size))
-    # reverse dimensions and scale by fig size
-    fig_size = norm_size[::-1] * max_fig_size
-    fig, ax = plt.subplots(figsize=fig_size)
-    return fig, ax
 
 
 def format_figure(fig, ax, im_size, landmarks):
@@ -651,40 +485,6 @@ def figure_pair_images_landmarks(pair_landmarks, pair_images, names=None,
     return fig
 
 
-def io_image_decorate(func):
-    """ costume decorator to suppers debug messages from the PIL function
-    to suppress PIl debug logging
-    - DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
-
-    :param func: wrapped function
-    :return:
-    """
-    def wrap(*args, **kwargs):
-        log_level = logging.getLogger().getEffectiveLevel()
-        logging.getLogger().setLevel(logging.INFO)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            response = func(*args, **kwargs)
-        logging.getLogger().setLevel(log_level)
-        return response
-    return wrap
-
-
-@io_image_decorate
-def imread(path_img):
-    """ just a wrapper to suppers debug messages from the matplotlib function
-    to suppress PIL warning about - DecompressionBombWarning:
-        exceeds limit of ... pixels, could be decompression bomb DOS attack
-
-    :param str path_img: path to the image
-    :return ndarray|None: image
-    """
-    try:
-        return plt.imread(path_img)
-    except Exception:
-        logging.exception('Image: %s', path_img)
-
-
 def load_image(img_path):
     """ loading very large images
 
@@ -700,15 +500,9 @@ def load_image(img_path):
     >>> load_image(n_img).shape
     (150, 200, 3)
     >>> os.remove(n_img)
-
-    Fail loading CSV file
-    >>> p_csv = 'sample-file.csv'
-    >>> pd.DataFrame().to_csv(p_csv)
-    >>> load_image(p_csv)
-    >>> os.remove(p_csv)
     """
     assert os.path.isfile(img_path), 'missing image: %s' % img_path
-    img = imread(img_path)
+    img = plt.imread(img_path)
     if img is not None and img.ndim == 3 and img.shape[2] == 4:
         img = img[:, :, :3]
     return img
@@ -770,21 +564,3 @@ def find_image_full_size(path_dataset, name_set, name_image):
     im_size = load_image(path_img).shape[:2]
     im_size_full = np.array(im_size) * (100. / scale)
     return tuple(im_size_full.astype(int))
-
-
-def estimate_scaling(images, max_size=MAX_IMAGE_SIZE):
-    """ find scaling for given set of images and maximal image size
-
-    :param [ndarray] images: input images
-    :param float max_size: max image size in any dimension
-    :return float: scaling in range (0, 1)
-
-    >>> estimate_scaling([np.zeros((12000, 8000, 3))])  # doctest: +ELLIPSIS
-    0.4...
-    >>> estimate_scaling([np.zeros((1200, 800, 3))])
-    1.0
-    """
-    sizes = [img.shape[:2] for img in images]
-    max_dim = np.max(sizes)
-    scale = np.round(float(max_size) / max_dim, 1) if max_dim > max_size else 1.
-    return scale

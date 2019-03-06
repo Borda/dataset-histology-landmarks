@@ -30,6 +30,8 @@ if os.environ.get('DISPLAY', '') == '':
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from birl.utilities.experiments import wrap_execute_sequence
+from birl.utilities.dataset import estimate_scaling
 try:
     import cv2 as cv
     OPENCV = True
@@ -41,8 +43,7 @@ sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, LANDMARK_COORDS
 from handlers.utilities import (
     parse_args, load_image, find_images, collect_triple_dir,
-    wrap_execute_parallel, estimate_affine_transform, estimate_scaling,
-    figure_pair_images_landmarks, figure_image_landmarks
+    estimate_affine_transform, figure_pair_images_landmarks, figure_image_landmarks
 )
 
 NAME_FIGURE_PAIR = 'PAIR___%s___AND___%s.pdf'
@@ -213,8 +214,8 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
     logging.info('Collected %i sub-folder: \n%s', len(coll_dirs),
                  '\n'.join(lnds_dirs))
 
-    counts = list(wrap_execute_parallel(
-        export_visual_set_scale, coll_dirs, nb_jobs=nb_jobs, desc='visualise'))
+    counts = list(wrap_execute_sequence(
+        export_visual_set_scale, coll_dirs, nb_workers=nb_jobs, desc='visualise'))
     logging.info('Performed %i visualisations', sum(counts))
     return counts
 

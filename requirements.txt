@@ -4,3 +4,4 @@ pillow>=2.1.0  # required for matplotlib
 matplotlib>=2.0.2,<3.0.0  # new version does not support py2
 tqdm>=4.7.4
 opencv-python
+git+https://github.com/Borda/BIRL.git

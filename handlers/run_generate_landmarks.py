@@ -28,12 +28,12 @@ import argparse
 from functools import partial
 
 import pandas as pd
+from birl.utilities.experiments import wrap_execute_sequence
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
 from handlers.utilities import (
-    parse_args, create_folder_path, wrap_execute_parallel, list_sub_folders,
-    create_consensus_landmarks
+    parse_args, create_folder_path, list_sub_folders, create_consensus_landmarks
 )
 
 
@@ -92,8 +92,8 @@ def dataset_generate_landmarks(path_annots, path_dataset,
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
-    counts = list(wrap_execute_parallel(
-        _wrap_lnds, sorted(list_sets), nb_jobs=nb_jobs, desc='consensus landmarks'))
+    counts = list(wrap_execute_sequence(
+        _wrap_lnds, sorted(list_sets), nb_workers=nb_jobs, desc='consensus landmarks'))
     return counts
 
 
@@ -137,8 +137,8 @@ def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_scale = partial(scale_set_landmarks, scales=scales)
-    counts = list(wrap_execute_parallel(
-        _wrap_scale, sorted(list_sets), nb_jobs=nb_jobs, desc='scaling sets'))
+    counts = list(wrap_execute_sequence(
+        _wrap_scale, sorted(list_sets), nb_workers=nb_jobs, desc='scaling sets'))
     return counts
 
 
