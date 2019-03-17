@@ -46,7 +46,7 @@ before_script:
 script:
 #  - nosetests -v --exe --with-doctest --with-xunit --with-coverage --cover-package=handlers  # --ignore-files=*.ijm
   - coverage run --source handlers -m py.test handlers -v --doctest-modules --junitxml=pytest_junit.xml
-  - flake8 . --ignore=E402,W605,E731 --max-line-length=100
+  - flake8 . --ignore=E402 --max-line-length=100
 
   - python handlers/run_evaluate_landmarks.py -a ./annotations -o ./output --visual
   - python handlers/run_generate_landmarks.py -a ./annotations -d ./dataset --scales 5

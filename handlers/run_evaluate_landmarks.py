@@ -57,6 +57,9 @@ def create_arg_parser():
     parser.add_argument('-o', '--path_output', type=str, required=False,
                         help='path to the output directory - visualisation',
                         default='output')
+    parser.add_argument('--consensus', type=str, required=False,
+                        help='method for consensus landmarks',
+                        choices=['mean', 'median'], default='mean')
     parser.add_argument('--visual', required=False, action='store_true',
                         help='export co-annotation visualisation', default=False)
     parser.add_argument('--nb_jobs', type=int, required=False,
@@ -102,18 +105,20 @@ def visual_coannotation(lnds_user, lnds_refs, path_dataset, path_user,
     return path_fig
 
 
-def compute_statistic(path_user, path_refs, path_dataset=None, path_visu=None):
+def compute_statistic(path_user, path_refs, tp_consensus='mean', path_dataset=None,
+                      path_visu=None):
     """ aggregate statistics over all his annotations
 
     :param str path_user: path to user annotation
     :param [str] path_refs: path to annotation of other users
+    :param str tp_consensus: type of consensus landmarks
     :param str path_dataset: path to image dataset
     :param str path_visu: path for visualisation (root)
     :return [{}]: list of stat. dictionaries
     """
     assert path_user and path_refs, 'missing user or reference annotation'
     lnds_user, _ = create_consensus_landmarks([path_user])
-    lnds_refs, _ = create_consensus_landmarks(path_refs)
+    lnds_refs, _ = create_consensus_landmarks(path_refs, method=tp_consensus)
 
     list_stats = []
     name_set, name_user_scale = path_user.split(os.sep)[-2:]
@@ -136,11 +141,13 @@ def compute_statistic(path_user, path_refs, path_dataset=None, path_visu=None):
     return list_stats
 
 
-def evaluate_user(user_name, path_annots, path_out, path_dataset=None, visual=False):
+def evaluate_user(user_name, path_annots, path_out, path_dataset=None,
+                  tp_consensus='mean', visual=False):
     """ evaluate single user statistic against consensus
 
     :param str user_name: annotator name
     :param str path_annots: path to the root of annotations
+    :param str tp_consensus: type of consensus landmarks
     :param str path_out: path for statistic and visualisation
     :param str path_dataset: path to image dataset
     :param bool visual: visualise also outputs
@@ -158,7 +165,7 @@ def evaluate_user(user_name, path_annots, path_out, path_dataset=None, visual=Fa
         if not paths_lnds_user or not paths_lnds_refs:
             continue
         for path_user in paths_lnds_user:
-            stats += compute_statistic(path_user, paths_lnds_refs,
+            stats += compute_statistic(path_user, paths_lnds_refs, tp_consensus,
                                        path_dataset, path_visu)
     if not stats:
         logging.warning('no statistic collected')
@@ -175,7 +182,8 @@ def evaluate_user(user_name, path_annots, path_out, path_dataset=None, visual=Fa
     return len(df_stats)
 
 
-def main(path_annots, path_dataset, path_output, nb_jobs=NB_THREADS, visual=False):
+def main(path_annots, path_dataset, path_output, consensus='mean', visual=False,
+         nb_jobs=NB_THREADS):
     coll_dirs, _ = collect_triple_dir([path_annots], '', '', with_user=True)
     logging.info('Collected sub-folder: %i', len(coll_dirs))
     user_names = sorted({parse_path_user_scale(d['landmarks'])[0]
@@ -186,7 +194,7 @@ def main(path_annots, path_dataset, path_output, nb_jobs=NB_THREADS, visual=Fals
 
     _evaluate_user = partial(evaluate_user, path_annots=path_annots,
                              path_dataset=path_dataset, path_out=path_output,
-                             visual=visual)
+                             tp_consensus=consensus, visual=visual)
     counts = list(wrap_execute_sequence(
         _evaluate_user, user_names, nb_workers=nb_jobs, desc='evaluate'))
     logging.info('Created %i statistics.', sum(counts))

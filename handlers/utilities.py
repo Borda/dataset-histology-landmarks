@@ -15,6 +15,7 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
+from scipy.spatial.distance import cdist
 from birl.utilities.data_io import update_path
 from birl.utilities.visualisation import create_figure
 from birl.utilities.dataset import list_sub_folders, parse_path_scale
@@ -112,31 +113,63 @@ def parse_path_user_scale(path):
     return user, scale
 
 
-def landmarks_consensus(list_landmarks):
+def landmarks_consensus(dfs_landmarks, method='mean'):
     """ compute consensus as mean over all landmarks
 
-    :param [DF] list_landmarks: list of DataFrames
+    :param [DF] dfs_landmarks: list of DataFrames
+    :param str method: methods supported are 'mean' and 'median';
+        'mean' compute arithmetic position mean
+        'median' takes the point with smallest distance to others
     :return DF:
 
     >>> lnds1 = pd.DataFrame(np.zeros((5, 2)), columns=LANDMARK_COORDS)
     >>> lnds2 = pd.DataFrame(np.ones((6, 2)), columns=LANDMARK_COORDS)
-    >>> landmarks_consensus([lnds1, lnds2])
+    >>> lnds3 = pd.DataFrame(np.ones((3, 2)) * 0.4, columns=LANDMARK_COORDS)
+    >>> landmarks_consensus([lnds1, lnds2, lnds3])  # doctest: +NORMALIZE_WHITESPACE
+           X      Y
+    0  0.467  0.467
+    1  0.467  0.467
+    2  0.467  0.467
+    3  0.500  0.500
+    4  0.500  0.500
+    5  1.000  1.000
+    >>> landmarks_consensus([lnds1, lnds2, lnds3], method='median')
          X    Y
-    0  0.5  0.5
-    1  0.5  0.5
-    2  0.5  0.5
-    3  0.5  0.5
-    4  0.5  0.5
+    0  0.4  0.4
+    1  0.4  0.4
+    2  0.4  0.4
+    3  0.0  0.0
+    4  0.0  0.0
     5  1.0  1.0
     """
-    lens = [len(lnd) for lnd in list_landmarks]
-    df = list_landmarks[np.argmax(lens)]
-    lens = sorted(set(lens), reverse=True)
-    for l in lens:
-        for ax in LANDMARK_COORDS:
-            df[ax][:l] = np.mean([lnd[ax].values[:l]
-                                  for lnd in list_landmarks
-                                  if len(lnd) >= l], axis=0)
+    lens = [len(lnd) for lnd in dfs_landmarks]
+    max_len = max(lens)
+    landmarks = []
+    # fill all empty positions by NaN
+    for df_lnds in dfs_landmarks:
+        lnds = np.full((max_len, len(LANDMARK_COORDS)), fill_value=np.nan)
+        lnds[:len(df_lnds)] = df_lnds.values
+        landmarks.append(lnds)
+    landmarks = np.asarray(landmarks)
+
+    if method == 'median':
+        lnds_cons = []
+        for i in range(max_len):
+            pts = landmarks[:, i, ...]
+            # compute dist to all points
+            dist_mx = cdist(pts, pts, metric='euclidean')
+            # finding row with only NaN
+            dist_num = dist_mx.copy()
+            dist_num[~np.isnan(dist_mx)] = 1
+            # compute distance to point
+            dists = np.nansum(dist_mx, axis=0)
+            # setting the nan rows as Inf
+            dists[np.nansum(dist_num, axis=0) == 0] = np.Inf
+            lnds_cons.append(landmarks[np.argmin(dists), i, ...])
+    else:
+        lnds_cons = np.nanmean(landmarks, axis=0)
+
+    df = pd.DataFrame(np.round(lnds_cons, decimals=3), columns=LANDMARK_COORDS)
     return df
 
 
@@ -288,11 +321,14 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False, i
     return d_stat
 
 
-def create_consensus_landmarks(path_annots, min_size=False):
+def create_consensus_landmarks(path_annots, min_size=False, method='mean'):
     """ create a consensus on set of landmarks and return normalised to 100%
 
     :param [str] path_annots: path to CSV landmarks
     :param bool min_size: use only max number of common points, 56 & 65 -> 56
+    :param str method: methods supported are 'mean' and 'median';
+        'mean' compute arithmetic position mean
+        'median' takes the point with smallest distance to others
     :return {str: DF}:
 
     >>> folder = './me-KJ_25'
@@ -324,7 +360,7 @@ def create_consensus_landmarks(path_annots, min_size=False):
     for name in dict_list_lnds:
         dict_lens[name] = len(dict_list_lnds[name])
         # cases where the number od points is different
-        df = landmarks_consensus(dict_list_lnds[name])
+        df = landmarks_consensus(dict_list_lnds[name], method)
         dict_lnds[name] = df
 
     # take the minimal set or landmarks over whole set

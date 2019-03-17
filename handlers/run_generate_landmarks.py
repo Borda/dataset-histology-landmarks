@@ -52,23 +52,28 @@ def create_arg_parser():
                         default='dataset')
     parser.add_argument('--scales', type=int, required=False, nargs='*',
                         help='generated scales for the dataset', default=SCALES)
+    parser.add_argument('--consensus', type=str, required=False,
+                        help='method for consensus landmarks',
+                        choices=['mean', 'median'], default='mean')
     parser.add_argument('--nb_jobs', type=int, required=False,
                         help='number of processes in parallel',
                         default=NB_THREADS)
     return parser
 
 
-def generate_consensus_landmarks(path_set, path_dataset):
+def generate_consensus_landmarks(path_set, path_dataset, tp_consensus='mean'):
     """ generate consensus landmarks for a particular image/landmark set
 
     :param str path_set: path to the set with annotations
     :param str path_dataset: output dataset path (root)
+    :param str tp_consensus: type of consensus landmarks
     :return {str: int}:
     """
     path_annots = list_sub_folders(path_set, '*_scale-*pc')
     logging.debug('>> found annotations: %i', len(path_annots))
 
-    dict_lnds, dict_lens = create_consensus_landmarks(path_annots)
+    dict_lnds, dict_lens = create_consensus_landmarks(path_annots,
+                                                      method=tp_consensus)
 
     path_scale = os.path.join(path_dataset, os.path.basename(path_set),
                               TEMPLATE_FOLDER_SCALE % 100)
@@ -79,19 +84,21 @@ def generate_consensus_landmarks(path_set, path_dataset):
     return {os.path.basename(path_set): dict_lens}
 
 
-def dataset_generate_landmarks(path_annots, path_dataset,
+def dataset_generate_landmarks(path_annots, path_dataset, tp_consensus='mean',
                                nb_jobs=NB_THREADS):
     """ generate consensus landmarks in full scale (100%)
 
     :param str path_annots: path to folder with annotations
     :param str path_dataset: output dataset path
+    :param str tp_consensus: type of consensus landmarks
     :param nb_jobs: run parallel jobs
     :return [int]:
     """
     list_sets = list_sub_folders(path_annots)
     logging.info('Found sets: %i', len(list_sets))
 
-    _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset)
+    _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset,
+                         tp_consensus=tp_consensus)
     counts = list(wrap_execute_sequence(
         _wrap_lnds, sorted(list_sets), nb_workers=nb_jobs, desc='consensus landmarks'))
     return counts
@@ -142,9 +149,9 @@ def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
     return counts
 
 
-def main(path_annots, path_dataset, scales, nb_jobs=NB_THREADS):
+def main(path_annots, path_dataset, scales, consensus='mean', nb_jobs=NB_THREADS):
     count_gene = dataset_generate_landmarks(path_annots, path_dataset,
-                                            nb_jobs=nb_jobs)
+                                            tp_consensus=consensus, nb_jobs=nb_jobs)
     count_scale = dataset_scale_landmarks(path_dataset, scales=scales,
                                           nb_jobs=nb_jobs)
     return count_gene, count_scale
