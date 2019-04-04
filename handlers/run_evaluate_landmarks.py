@@ -122,6 +122,7 @@ def compute_statistic(path_user, path_refs, tp_consensus='mean', path_dataset=No
 
     list_stats = []
     name_set, name_user_scale = path_user.split(os.sep)[-2:]
+    user, scale = parse_path_user_scale(name_user_scale)
     for csv_name in lnds_user:
         if csv_name not in lnds_refs:
             continue
@@ -130,8 +131,9 @@ def compute_statistic(path_user, path_refs, tp_consensus='mean', path_dataset=No
         d_stat = compute_landmarks_statistic(lnds_refs[csv_name],
                                              lnds_user[csv_name],
                                              use_affine=False, im_size=im_size)
-        d_stat.update({'name_image_set': name_set,
-                       'name_user': name_user_scale,
+        d_stat.update({'image_set': name_set,
+                       'user': user,
+                       'scale': scale,
                        'landmarks': csv_name})
         list_stats.append(d_stat)
         if path_visu is not None and os.path.isdir(path_visu):
@@ -172,14 +174,7 @@ def evaluate_user(user_name, path_annots, path_out, path_dataset=None,
         return 0
 
     df_stats = pd.DataFrame(stats)
-    df_stats.set_index(['name_image_set', 'name_user', 'landmarks'],
-                       inplace=True)
-    path_csv = os.path.join(path_out, 'STATISTIC_%s.csv' % user_name)
-    logging.debug('exporting CSV stat.: %s', path_csv)
-    df_stats.to_csv(path_csv)
-    df_stat_short = df_stats.describe().T[['count', 'mean', 'std', 'max']]
-    logging.info('USER: %s \n%s \n %s' % (user_name, '=' * 10, df_stat_short))
-    return len(df_stats)
+    return df_stats
 
 
 def main(path_annots, path_dataset, path_output, consensus='mean', visual=False,
@@ -195,10 +190,27 @@ def main(path_annots, path_dataset, path_output, consensus='mean', visual=False,
     _evaluate_user = partial(evaluate_user, path_annots=path_annots,
                              path_dataset=path_dataset, path_out=path_output,
                              tp_consensus=consensus, visual=visual)
-    counts = list(wrap_execute_sequence(
+    dfs = list(wrap_execute_sequence(
         _evaluate_user, user_names, nb_workers=nb_jobs, desc='evaluate'))
-    logging.info('Created %i statistics.', sum(counts))
-    return counts
+
+    # aggregate results
+    df_all = pd.concat(dfs, sort=False)
+    df_all.to_csv(os.path.join(path_output, 'STATISTIC__partial.csv'))
+    df_short = pd.DataFrame()
+    for user, dfg in df_all.groupby('user'):
+        stat = dict(dfg['rTRE median'].describe().T[['mean', 'std', 'max']])
+        stat = {'%s [median rTRE]' % k: stat[k] for k in stat if k != 'count'}
+        stat.update({
+            'user': user,
+            'count': len(dfg),
+        })
+        df_short = df_short.append(stat, ignore_index=True)
+    df_short.set_index('user', inplace=True)
+    logging.info('OVERALL \n%s \n %s' % ('=' * 10, df_short))
+    df_short.to_csv(os.path.join(path_output, 'STATISTIC__overview.csv'))
+
+    logging.info('Created %i statistics.', len(df_all))
+    return len(df_all)
 
 
 if __name__ == '__main__':

@@ -282,8 +282,8 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False, i
     rTRE std                        0.25...
     dtype: object
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, im_size=(150, 175))
-    >>> d_stat['TRE mean']  # doctest: +ELLIPSIS
-    69.0189...
+    >>> d_stat['rTRE median']  # doctest: +ELLIPSIS
+    0.324...
     """
     if isinstance(landmarks_ref, pd.DataFrame):
         landmarks_ref = landmarks_ref[list(LANDMARK_COORDS)].values
@@ -315,7 +315,7 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False, i
     d_stat['image size (%s)' % tp] = tuple(im_size.tolist())
     d_stat['image diagonal (%s)' % tp] = np.sqrt(np.sum(im_size ** 2))
 
-    for m in ['mean', 'std', 'min', 'max']:
+    for m in ['mean', 'std', 'min', 'max', 'median']:
         d_stat['rTRE %s' % m] = d_stat['TRE %s' % m] / im_diag
 
     return d_stat
