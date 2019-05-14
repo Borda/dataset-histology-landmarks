@@ -29,7 +29,7 @@ if os.environ.get('DISPLAY', '') == '':
 
 import pandas as pd
 import matplotlib.pyplot as plt
-from birl.utilities.experiments import wrap_execute_sequence
+from birl.utilities.experiments import iterate_mproc_map
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import NB_THREADS, TEMPLATE_FOLDER_SCALE
@@ -190,7 +190,7 @@ def main(path_annots, path_dataset, path_output, consensus='mean', visual=False,
     _evaluate_user = partial(evaluate_user, path_annots=path_annots,
                              path_dataset=path_dataset, path_out=path_output,
                              tp_consensus=consensus, visual=visual)
-    dfs = list(wrap_execute_sequence(
+    dfs = list(iterate_mproc_map(
         _evaluate_user, user_names, nb_workers=nb_jobs, desc='evaluate'))
 
     # aggregate results

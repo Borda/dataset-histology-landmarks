@@ -30,7 +30,7 @@ if os.environ.get('DISPLAY', '') == '':
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from birl.utilities.experiments import wrap_execute_sequence
+from birl.utilities.experiments import iterate_mproc_map
 from birl.utilities.dataset import estimate_scaling
 try:
     import cv2 as cv
@@ -214,7 +214,7 @@ def main(path_landmarks, path_dataset, path_output, scales, nb_jobs=NB_THREADS):
     logging.info('Collected %i sub-folder: \n%s', len(coll_dirs),
                  '\n'.join(lnds_dirs))
 
-    counts = list(wrap_execute_sequence(
+    counts = list(iterate_mproc_map(
         export_visual_set_scale, coll_dirs, nb_workers=nb_jobs, desc='visualise'))
     logging.info('Performed %i visualisations', sum(counts))
     return counts

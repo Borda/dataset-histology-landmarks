@@ -28,7 +28,7 @@ import argparse
 from functools import partial
 
 import pandas as pd
-from birl.utilities.experiments import wrap_execute_sequence
+from birl.utilities.experiments import iterate_mproc_map
 
 sys.path += [os.path.abspath('.'), os.path.abspath('..')]  # Add path to root
 from handlers.utilities import SCALES, TEMPLATE_FOLDER_SCALE, NB_THREADS
@@ -99,7 +99,7 @@ def dataset_generate_landmarks(path_annots, path_dataset, tp_consensus='mean',
 
     _wrap_lnds = partial(generate_consensus_landmarks, path_dataset=path_dataset,
                          tp_consensus=tp_consensus)
-    counts = list(wrap_execute_sequence(
+    counts = list(iterate_mproc_map(
         _wrap_lnds, sorted(list_sets), nb_workers=nb_jobs, desc='consensus landmarks'))
     return counts
 
@@ -144,7 +144,7 @@ def dataset_scale_landmarks(path_dataset, scales=SCALES, nb_jobs=NB_THREADS):
     logging.info('Found sets: %i', len(list_sets))
 
     _wrap_scale = partial(scale_set_landmarks, scales=scales)
-    counts = list(wrap_execute_sequence(
+    counts = list(iterate_mproc_map(
         _wrap_scale, sorted(list_sets), nb_workers=nb_jobs, desc='scaling sets'))
     return counts
 
