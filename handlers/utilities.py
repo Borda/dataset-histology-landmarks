@@ -17,7 +17,7 @@ import pandas as pd
 import matplotlib.pylab as plt
 from scipy.spatial.distance import cdist
 from birl.utilities.data_io import update_path
-from birl.utilities.visualisation import create_figure
+from birl.utilities.drawing import create_figure
 from birl.utilities.dataset import list_sub_folders, parse_path_scale
 from birl.utilities.registration import estimate_affine_transform
 
