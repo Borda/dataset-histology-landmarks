@@ -1,7 +1,7 @@
 numpy>=1.9.3
 pandas>=0.14.1
 pillow>=2.1.0  # required for matplotlib
-matplotlib>=2.0.2,<3.0.0  # new version does not support py2
+matplotlib>=2.0.2 ,<3.0.0  # new version does not support py2
 tqdm>=4.7.4
-opencv-python
-git+https://github.com/Borda/BIRL.git#egg=BIRL
+opencv-python-headless<4.3  # some complication with installing on python 2.7
+https://github.com/Borda/BIRL/archive/master.zip#egg=BIRL

@@ -30,7 +30,8 @@ before_install:
   - pip install --upgrade pip
 
 install:
-  - sudo apt-get install python-opencv
+  #- sudo apt-get install python-opencv
+  - pip install "setuptools<46" -U  # v46 crashes openslide-python install
   - pip install -r requirements.txt
   - pip install -U coverage pytest pytest-cov codecov codacy-coverage flake8
   # code coverage tool
