@@ -4,9 +4,9 @@ Testing most of the executables which do not depend on external data (images)
 Copyright (C) 2014-2018 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
+import logging
 import os
 import sys
-import logging
 
 import numpy as np
 

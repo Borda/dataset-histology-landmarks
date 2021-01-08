@@ -5,21 +5,21 @@ Copyright (C) 2014-2019 Jiri Borovec <jiri.borovec@fel.cvut.cz>
 """
 
 
-import os
-import re
 import glob
 import logging
 import multiprocessing as mproc
+import os
+import re
 
-from PIL import Image
+import matplotlib.pylab as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pylab as plt
-from scipy.spatial.distance import cdist
+from PIL import Image
 from birl.utilities.data_io import update_path
-from birl.utilities.drawing import create_figure
 from birl.utilities.dataset import list_sub_folders, parse_path_scale
+from birl.utilities.drawing import create_figure
 from birl.utilities.registration import estimate_affine_transform
+from scipy.spatial.distance import cdist
 
 NB_THREADS = max(1, int(mproc.cpu_count() * 0.9))
 SCALES = (5, 10, 20, 25, 50, 100)
