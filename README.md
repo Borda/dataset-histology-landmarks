@@ -1,6 +1,6 @@
 # Dataset: histology landmarks
 
-[![Build Status](https://travis-ci.org/Borda/dataset-histology-landmarks.svg?branch=master)](https://travis-ci.org/Borda/dataset-histology-landmarks)
+[![CI testing](https://github.com/Borda/dataset-histology-landmarks/workflows/CI%20testing/badge.svg?branch=master&event=push)](https://github.com/Borda/dataset-histology-landmarks/actions?query=workflow%3A%22CI+testing%22)
 [![codecov](https://codecov.io/gh/Borda/dataset-histology-landmarks/branch/master/graph/badge.svg)](https://codecov.io/gh/Borda/dataset-histology-landmarks)
 [![codebeat badge](https://codebeat.co/badges/6c0bfead-09bc-42ed-aa8e-cf49944aaa40)](https://codebeat.co/projects/github-com-borda-dataset-histology-landmarks-master)
 [![Maintainability](https://api.codeclimate.com/v1/badges/e1374e80994253cc8e95/maintainability)](https://codeclimate.com/github/Borda/dataset-histology-landmarks/maintainability)

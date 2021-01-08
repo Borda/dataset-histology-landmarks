@@ -267,20 +267,24 @@ def compute_landmarks_statistic(landmarks_ref, landmarks_in, use_affine=False, i
     ...                   [47., -15.], [65., -60.], [77., -52.], [0, 0]])
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, use_affine=True)
     >>> import pandas as pd
+    >>> _org_float_format = pd.options.display.float_format
+    >>> pd.options.display.float_format = '{:,.1f}'.format
     >>> pd.Series(d_stat).sort_index()  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    TRE count                             8
-    TRE max                         68.9...
-    TRE mean                        18.6...
-    TRE median                      13.5...
-    TRE min                         1.02...
-    TRE std                         21.4...
-    image diagonal (estimated)      85.7...
-    image size (estimated)         (65, 56)
-    rTRE max                        0.80...
-    rTRE mean                       0.21...
-    rTRE min                       0.011...
-    rTRE std                        0.25...
+    TRE count                          8.0
+    TRE max                           69.0
+    TRE mean                          18.6
+    TRE median                        13.5
+    TRE min                            1.0
+    TRE std                           21.5
+    image diagonal (estimated)        85.8
+    image size (estimated)        (65, 56)
+    rTRE max                           0.8
+    rTRE mean                          0.2
+    rTRE median                        0.2
+    rTRE min                           0.0
+    rTRE std                           0.3
     dtype: object
+    >>> pd.options.display.float_format = _org_float_format
     >>> d_stat = compute_landmarks_statistic(lnds0, lnds1, im_size=(150, 175))
     >>> d_stat['rTRE median']  # doctest: +ELLIPSIS
     0.324...
